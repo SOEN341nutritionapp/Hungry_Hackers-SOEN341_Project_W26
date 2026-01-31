@@ -12,3 +12,27 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+// =======================
+// User Model
+// =======================
+// Represents an application user.
+// Only certain fields should be editable after account creation.
+// Editable fields:
+// - email (with validation)
+// - password (must be hashed)
+// - dietaryPreference
+//
+// Non-editable fields:
+// - id
+// - createdAt
+// - updatedAt
+//
+model User {
+  id                String   @id @default(uuid()) // Unique user identifier
+  email             String   @unique // User login email (must be unique)
+  password          String // Hashed password
+  dietaryPreference String? // Optional dietary preference (e.g. vegan, halal)
+  createdAt         DateTime @default(now()) // Timestamp when user is created
+  updatedAt         DateTime @updatedAt // Auto-updated timestamp
+}

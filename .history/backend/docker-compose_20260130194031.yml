@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16
+    container_name: mealmajor-db
+    restart: always
+    environment:
+      POSTGRES_USER: mealmajor
+      POSTGRES_PASSWORD: mealmajor
+      POSTGRES_DB: mealmajor
+    ports:
+      - "5432:5432"
+    volumes:
+      - mealmajor_db_data:/var/lib/postgresql/data
+
+volumes:
+  mealmajor_db_data:

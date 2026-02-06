@@ -15,11 +15,18 @@ datasource db {
 
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  name      String
-  password  String
+  id                  String   @id @default(uuid())
+  email               String   @unique
+  name                String
+  password            String
+  dateOfBirth         DateTime?
+  sex                 String?
+  heightCm            Int?
+  weightKg            Int?
+  allergies           String[]  @default([]) 
+  dietaryPreferences  String[]  @default([]) 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
 }
 

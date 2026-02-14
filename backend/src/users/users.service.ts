@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import * as bcrypt from 'bcrypt'
+import * as bcrypt from 'bcrypt';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class UsersService {
@@ -42,6 +43,42 @@ export class UsersService {
         id: true,
         email: true,
         name: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  }
+
+  
+  async updateProfile(userId: string, updateData: UpdateProfileDto) {
+    const allowed: any = {};
+
+    if (updateData.dateOfBirth !== undefined) allowed.dateOfBirth = new Date(updateData.dateOfBirth);
+    if (updateData.sex !== undefined) allowed.sex = updateData.sex;
+    if (updateData.heightCm !== undefined) allowed.heightCm = updateData.heightCm;
+    if (updateData.weightKg !== undefined) allowed.weightKg = updateData.weightKg;
+    if (updateData.allergies !== undefined) allowed.allergies = updateData.allergies;
+    if (updateData.dietaryPreferences !== undefined) allowed.dietaryPreferences = updateData.dietaryPreferences;
+
+    // If nothing valid was provided, stop
+    if (Object.keys(allowed).length === 0) {
+      throw new BadRequestException('No valid fields provided to update');
+    }
+
+    // Update in database
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: allowed,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        dateOfBirth: true,
+        sex: true,
+        heightCm: true,
+        weightKg: true,
+        allergies: true,
+        dietaryPreferences: true,
         createdAt: true,
         updatedAt: true,
       },

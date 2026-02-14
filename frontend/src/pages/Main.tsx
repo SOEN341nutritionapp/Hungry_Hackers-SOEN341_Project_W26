@@ -1,20 +1,17 @@
-import { Link } from 'react-router-dom'
-import { useAuth } from '../AuthContext'
-
 export default function Main() {
-  const { logout } = useAuth()
-
   return (
-    <div>
-      <h1>Main (Protected)</h1>
-
-      <Link to="/profile">
-        <button>Go to Profile</button>
-      </Link>
-
-      <br /><br />
-
-      <button onClick={logout}>Logout</button>
+    <div className="p-8 flex items-center justify-center min-h-[80vh]">
+      <div className="text-center">
+        <h1 className="text-5xl font-bold text-gray-900 mb-4">
+          Hey, User! 👋
+        </h1>
+        <p className="text-xl text-gray-800">
+          Welcome to MealMajor
+        </p>
+        <p className="text-gray-700 mt-4">
+          Your meal planning journey starts here
+        </p>
+      </div>
     </div>
   )
 }

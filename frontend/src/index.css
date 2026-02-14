@@ -1,17 +1,128 @@
 @import "tailwindcss";
 @plugin "daisyui";
 
-body {
-  margin: 0;
-  padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans',
-    'Helvetica Neue', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* DaisyUI Custom Theme: MealMajor (matches the screenshot: clean white + bold green) */
+@plugin "daisyui/theme" {
+  name: "mealmajor";
+  default: true;
+  prefersdark: false;
+  color-scheme: "light";
+
+  /* Surfaces */
+  --color-base-100: #ffffff;  /* main background */
+  --color-base-200: #f6f8fb;  /* page sections / subtle panels */
+  --color-base-300: #e5e7eb;  /* dividers/borders */
+  --color-base-content: #0f172a; /* dark slate text */
+
+  /* Brand green (title + active state) */
+  --color-primary: #16a34a;         /* strong green */
+  --color-primary-content: #ffffff; /* text on primary */
+
+  /* Secondary (links / secondary CTA) */
+  --color-secondary: #2563eb;
+  --color-secondary-content: #ffffff;
+
+  /* Accent (chips / small highlights) */
+  --color-accent: #22c55e;
+  --color-accent-content: #052e16;
+
+  /* Neutral (sidebar text/icon color) */
+  --color-neutral: #0f172a;
+  --color-neutral-content: #ffffff;
+
+  /* Status */
+  --color-info: #0ea5e9;
+  --color-info-content: #ffffff;
+
+  --color-success: #22c55e;
+  --color-success-content: #052e16;
+
+  --color-warning: #f59e0b;
+  --color-warning-content: #111827;
+
+  --color-error: #ef4444;
+  --color-error-content: #ffffff;
+
+  /* Rounded + soft UI like screenshot */
+  --radius-selector: 1rem;
+  --radius-field: 0.9rem;
+  --radius-box: 1.25rem;
+
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
 }
 
-.hero-section {
-  background-attachment: fixed;
+/* Optional: page background (very subtle) */
+.app-bg {
+  background: linear-gradient(180deg, #ffffff 0%, #f6f8fb 100%);
 }
 
+@layer components {
+  /* Sidebar container spacing */
+  .mm-sidebar {
+    @apply bg-base-100 px-6 py-8;
+  }
+
+  /* App title */
+  .mm-brand {
+    @apply text-4xl font-extrabold tracking-tight text-primary;
+  }
+
+  .mm-subtitle {
+    @apply mt-1 text-base text-slate-500;
+  }
+
+  /* Divider line under header */
+  .mm-divider {
+    @apply my-6 border-t border-base-300;
+  }
+
+  /* Menu list spacing */
+  .mm-menu {
+    @apply menu gap-2 text-base font-semibold;
+  }
+
+  /* Each row */
+  .mm-menu a {
+    @apply rounded-2xl px-4 py-4 flex items-center gap-4 text-slate-900;
+  }
+
+  /* Icon sizing */
+  .mm-menu a svg {
+    @apply h-6 w-6;
+  }
+
+  /* Active (selected) pill */
+  .mm-menu a.mm-active {
+    @apply bg-green-50 text-primary;
+  }
+
+  /* Hover */
+  .mm-menu a:not(.mm-active):hover {
+    @apply bg-base-200;
+  }
+}
+
+
+/* Existing Custom Styles */
+.frontpage-bg { 
+  background-image: url('/bg.jpg'); 
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+@layer components {
+  .text-large {
+    @apply font-sans text-5xl md:text-4xl font-bold tracking-tight text-slate-800;
+  }
+
+  .text-medium {
+    @apply font-sans text-base font-semibold leading-relaxed text-slate-600;
+  }
+
+  .text-small {
+    @apply font-sans text-sm font-normal text-slate-500 opacity-90;
+  }
+}

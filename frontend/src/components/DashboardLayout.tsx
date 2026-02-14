@@ -4,9 +4,9 @@ import { useAuth } from '../AuthContext'
 import {
   LayoutDashboard,
   //Heart,
-  //BookOpen,
-  //ShoppingCart,
-  //CalendarDays,
+  BookOpen,
+  ShoppingCart,
+  CalendarDays,
   User,
   LogOut,
   Menu,
@@ -18,11 +18,10 @@ export default function DashboardLayout() {
   const navItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Profile', path: '/profile', icon: User },
-    // Add these routes when you create the pages:
     // { name: 'My Meals', path: '/meals', icon: Heart },
-    // { name: 'Recipes', path: '/recipes', icon: BookOpen },
-    // { name: 'Shopping List', path: '/shopping', icon: ShoppingCart },
-    // { name: 'Calendar', path: '/calendar', icon: CalendarDays },
+    { name: 'Recipes', path: '/recipes', icon: BookOpen },
+    { name: 'Shopping List', path: '/shopping', icon: ShoppingCart },
+    { name: 'Calendar', path: '/calendar', icon: CalendarDays },
   ]
 
   return (

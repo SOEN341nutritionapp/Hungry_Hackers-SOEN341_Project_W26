@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UnauthorizedException, Res, Req } from '@nestjs/common';
+import { Body, Controller, Post, Get, UnauthorizedException, Res, Req } from '@nestjs/common';
 import type { Response, Request } from 'express';
 import { RegisterDto } from './dto/register.dto';
 import { AuthService } from './auth.service';
@@ -21,16 +21,24 @@ export class AuthController {
     const user = await this.authService.validateUser(loginDto.email, loginDto.password);
     if (user instanceof UnauthorizedException) throw user;
 
-    const tokens = await this.authService.login({ id: user.id, email: user.email });
+    const tokens = await this.authService.login({ id: (user as any).id, email: (user as any).email });
 
     res.cookie('refreshToken', tokens.refreshToken, {
       httpOnly: true,
       sameSite: 'lax',
-      secure: false, // set true in production with https
+      secure: false, 
       path: '/auth/refresh',
     });
 
-    return { accessToken: tokens.accessToken };
+    //Sends user info back to React immediately
+    return { 
+      accessToken: tokens.accessToken,
+      user: {
+        id: (user as any).id,
+        name: (user as any).name,
+        email: (user as any).email
+      }
+    };
   }
 
   @Post('refresh')
@@ -45,7 +53,7 @@ export class AuthController {
     const user = await this.authService.findUserById(payload.sub);
     if (user instanceof UnauthorizedException || !user) throw new UnauthorizedException('User not found');
 
-    const tokens = await this.authService.login({ id: user.id, email: user.email });
+    const tokens = await this.authService.login({ id: (user as any).id, email: (user as any).email });
 
     res.cookie('refreshToken', tokens.refreshToken, {
       httpOnly: true,
@@ -61,5 +69,30 @@ export class AuthController {
   async logout(@Res({ passthrough: true }) res: Response) {
     res.clearCookie('refreshToken', { path: '/auth/refresh' });
     return { ok: true };
+  }
+
+  // Get user profile information
+  @Get('profile')
+  async getProfile(@Req() req: Request) {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader) throw new UnauthorizedException('No token');
+    
+    const token = authHeader.split(' ')[1];
+    try {
+      const payload = this.authService.verifyToken(token);
+      const user = await this.authService.findUserById(payload.sub) as any;
+      
+      if (!user) throw new UnauthorizedException('User not found');
+
+      return {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        dietaryPreferences: user.dietaryPreferences || [],
+        allergies: user.allergies || []
+      };
+    } catch (e) {
+      throw new UnauthorizedException('Invalid token');
+    }
   }
 }

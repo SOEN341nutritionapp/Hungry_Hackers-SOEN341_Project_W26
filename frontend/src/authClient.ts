@@ -1,4 +1,4 @@
-import { apiPost } from './api'
+import { apiPost, apiGet, apiPatch } from './api'
 
 let accessToken: string | null = null
 
@@ -15,21 +15,37 @@ export async function register(email: string, password: string, name: string) {
 }
 
 export async function login(email: string, password: string) {
-  const data = await apiPost<{ accessToken: string }>('/auth/login', {
+ 
+  const data = await apiPost<{ accessToken: string; user: any }>('/auth/login', {
     email,
     password,
   })
   setAccessToken(data.accessToken)
-  return data.accessToken
+  
+
+  return data 
 }
 
 export async function refresh() {
-  const data = await apiPost<{ accessToken: string }>('/auth/refresh', {})
+ 
+  const data = await apiPost<{ accessToken: string; user: any }>('/auth/refresh', {})
   setAccessToken(data.accessToken)
-  return data.accessToken
+  return data
 }
 
 export async function logout() {
   await apiPost('/auth/logout', {})
   setAccessToken(null)
+}
+
+
+
+
+export async function getProfile() {
+  return apiGet<any>('/auth/profile', accessToken || undefined)
+}
+
+
+export async function updateProfile(updates: any) {
+  return apiPatch<any>('/auth/profile', updates, accessToken || undefined)
 }

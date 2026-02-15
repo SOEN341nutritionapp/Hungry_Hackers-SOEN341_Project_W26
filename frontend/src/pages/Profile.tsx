@@ -42,9 +42,11 @@ export default function Profile() {
   const displayEmail = profile?.email || user?.email || 'No email found'
 
   return (
-    <div className="p-8">
-      <div className="max-w-2xl border border-gray-300 rounded p-6 bg-white">
-        <h2 className="text-2xl font-bold mb-6 text-gray-900">Profile</h2>
+    <div className="max-w-3xl">
+      <div className="mb-6">
+        <h2 className="text-3xl font-bold text-base-content">Profile</h2>
+        <p className="opacity-70">Your account and dietary info.</p>
+      </div>
 
         {/* Account Information */}
         <div className="mb-5">
@@ -83,6 +85,5 @@ export default function Profile() {
           Edit Profile
         </button>
       </div>
-    </div>
   )
 }

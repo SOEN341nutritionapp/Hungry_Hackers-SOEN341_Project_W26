@@ -28,5 +28,38 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Relation to the Recipe
+  recipes              Recipe[]
+}
+
+model Recipe {
+  // unique identifier for this recipe (auto-generated)
+  id                  String   @id @default(uuid()) 
+  // ID of the user who created this recipe (foreign key)
+  userId              String
+  // Relation to User model 
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title               String
+  description         String?
+  imageUrl            String?
+  difficulty          String 
+  prepTime            Float
+  cookTime            Float
+  servings            Int
+  cost                Float?
+  dietaryTags         String[] @default([])
+
+  // ingredients - json array of objects
+  // example: [{"name":"Eggs", "amount": "240, "unit": "ml" }]
+  ingredients         Json
+
+  // Instructions - array of steo strings
+  instructions        String[]
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  @@index([userId])
 }
 

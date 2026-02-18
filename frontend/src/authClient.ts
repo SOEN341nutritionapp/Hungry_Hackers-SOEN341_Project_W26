@@ -39,8 +39,6 @@ export async function logout() {
 }
 
 
-
-
 export async function getProfile() {
   return apiGet<any>('/auth/profile', accessToken || undefined)
 }

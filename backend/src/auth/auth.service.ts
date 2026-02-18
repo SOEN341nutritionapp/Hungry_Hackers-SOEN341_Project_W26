@@ -89,18 +89,18 @@ verifyToken(token: string) {
   }
 }
 
-async updateUser(id: string, data: { name?: string; dietaryPreferences?: string[]; allergies?: string[] }) {
-  const user = await this.prisma.user.update({
+async updateUser(id: string, data: any) {
+  return this.prisma.user.update({
     where: { id },
     data: {
       name: data.name,
       dietaryPreferences: data.dietaryPreferences,
       allergies: data.allergies,
+      sex: data.sex,       
+      heightCm: data.heightCm, 
+      weightKg: data.weightKg, 
     },
   });
-
-  const { password: _, ...result } = user;
-  return result;
 }
     
 }

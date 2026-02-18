@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Get, UnauthorizedException, Res, Req } from '@nestjs/common';
+import { Body, Controller, Post, Get, Patch, UnauthorizedException, Res, Req } from '@nestjs/common';
 import type { Response, Request } from 'express';
 import { RegisterDto } from './dto/register.dto';
 import { AuthService } from './auth.service';
@@ -89,10 +89,33 @@ export class AuthController {
         name: user.name,
         email: user.email,
         dietaryPreferences: user.dietaryPreferences || [],
-        allergies: user.allergies || []
+        allergies: user.allergies || [],
+        sex: user.sex,
+        heightCm: user.heightCm,
+        weightKg: user.weightKg,
       };
     } catch (e) {
       throw new UnauthorizedException('Invalid token');
     }
   }
+
+//update user profile information
+@Patch('profile')
+async updateProfile(@Req() req: Request, @Body() updates: any) {
+
+  const authHeader = req.headers['authorization'];
+  if (!authHeader) throw new UnauthorizedException('No token');
+  
+  const token = authHeader.split(' ')[1];
+  
+  try {
+    const payload = this.authService.verifyToken(token);
+    
+    return await this.authService.updateUser(payload.sub, updates);
+  } catch (e) {
+    throw new UnauthorizedException('Invalid token or update failed');
+  }
 }
+
+}
+

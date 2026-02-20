@@ -32,7 +32,7 @@ export class RecipesController {
     }
 
     // Patch: UPDATE A RECIPE by ID for the logged-in user
-    @Patch('userId/:id')
+    @Patch(':userId/:id')
     update(
         @Param('userId') userId: string,
         @Param('id') id: string,

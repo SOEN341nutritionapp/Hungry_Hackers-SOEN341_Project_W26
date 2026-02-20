@@ -82,15 +82,15 @@ export class RecipeService {
 
         if (UpdateRecipeDto.title !== undefined) updateData.title = UpdateRecipeDto.title;
         if (UpdateRecipeDto.description !== undefined) updateData.description = UpdateRecipeDto.description;
-        if (UpdateRecipeDto.imageUrl !== undefined) UpdateRecipeDto.imageUrl = UpdateRecipeDto.imageUrl;
-        if (UpdateRecipeDto.difficulty !== undefined) UpdateRecipeDto.difficulty = UpdateRecipeDto.difficulty;
-        if (UpdateRecipeDto.prepTime !== undefined) UpdateRecipeDto.prepTime = UpdateRecipeDto.prepTime;
-        if (UpdateRecipeDto.cookTime !== undefined) UpdateRecipeDto.cookTime = UpdateRecipeDto.cookTime;
-        if (UpdateRecipeDto.servings !== undefined) UpdateRecipeDto.servings = UpdateRecipeDto.servings;
-        if (UpdateRecipeDto.cost !== undefined) UpdateRecipeDto.cost = UpdateRecipeDto.cost;
-        if (UpdateRecipeDto.dietaryTags !== undefined) UpdateRecipeDto.dietaryTags = UpdateRecipeDto.dietaryTags;
-        if (UpdateRecipeDto.ingredients !== undefined) UpdateRecipeDto.ingredients = UpdateRecipeDto.ingredients;
-        if (UpdateRecipeDto.instructions !== undefined) UpdateRecipeDto.instructions = UpdateRecipeDto.instructions;
+        if (UpdateRecipeDto.imageUrl !== undefined) updateData.imageUrl = UpdateRecipeDto.imageUrl;
+        if (UpdateRecipeDto.difficulty !== undefined) updateData.difficulty = UpdateRecipeDto.difficulty;
+        if (UpdateRecipeDto.prepTime !== undefined) updateData.prepTime = UpdateRecipeDto.prepTime;
+        if (UpdateRecipeDto.cookTime !== undefined) updateData.cookTime = UpdateRecipeDto.cookTime;
+        if (UpdateRecipeDto.servings !== undefined) updateData.servings = UpdateRecipeDto.servings;
+        if (UpdateRecipeDto.cost !== undefined) updateData.cost = UpdateRecipeDto.cost;
+        if (UpdateRecipeDto.dietaryTags !== undefined) updateData.dietaryTags = UpdateRecipeDto.dietaryTags;
+        if (UpdateRecipeDto.ingredients !== undefined) updateData.ingredients = UpdateRecipeDto.ingredients;
+        if (UpdateRecipeDto.instructions !== undefined) updateData.instructions = UpdateRecipeDto.instructions;
 
         if (Object.keys(updateData).length === 0) {
             throw new BadRequestException('No valid field provided to update');

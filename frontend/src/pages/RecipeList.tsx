@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../AuthContext'
-import { getUserIdFromToken } from '../utils/auth'
 import { Plus, Edit2, Trash2, Clock, ChefHat } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'  
 
@@ -33,13 +32,13 @@ interface Recipe {
 
 export default function RecipeList() {
     const navigate = useNavigate()
-    const { accessToken } = useAuth()
 
     // Get API base URL from environment variable
     const API_URL = import.meta.env.VITE_API_URL
 
-    // Get logged-in user's ID from JWT token in auth.ts
-    const userId = accessToken ? getUserIdFromToken(accessToken) : null
+    // Get logged-in user's ID from AuthContext
+    const { user } = useAuth()
+    const userId = user?.id
 
     // State to hold recipes, loading status, and error message
     const [recipes, setRecipes] = useState<Recipe[]>([])

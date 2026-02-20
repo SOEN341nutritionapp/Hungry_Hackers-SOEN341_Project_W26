@@ -1,13 +1,11 @@
-// src/pages/RecipeEdit.tsx
-// Form to edit an existing recipe
-// Loads the existing recipe data and pre-fills all the fields
-// Same controls as Create but with existing data already filled in
-
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Plus, X, ArrowLeft, Save, Minus } from 'lucide-react'
 import { useAuth } from '../AuthContext'
-import { getUserIdFromToken } from '../utils/auth'
+
+// Form to edit an existing recipe
+// Loads the existing recipe data and pre-fills all the fields
+// Same controls as Create but with existing data already filled in
 
 // Interface for a single ingredient
 interface Ingredient {
@@ -53,13 +51,13 @@ const DIETARY_TAGS = [
 export default function RecipeEdit() {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>() // Get recipe ID from URL
-  const { accessToken } = useAuth()
 
   // Get API base URL from environment variable
   const API_URL = import.meta.env.VITE_API_URL
 
-  // Decode JWT token to get the logged-in user's ID
-  const userId = accessToken ? getUserIdFromToken(accessToken) : null
+  // logged-in userId from authcontext
+  const { user } = useAuth()
+  const userId = user?.id
 
   // Loading states
   const [loading, setLoading] = useState(true)

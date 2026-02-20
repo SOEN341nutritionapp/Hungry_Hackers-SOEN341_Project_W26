@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Edit2, Trash2, Clock, Users, ChefHat, DollarSign, ArrowLeft, ListOrdered } from 'lucide-react'
 import { useAuth } from '../AuthContext'
-import { getUserIdFromToken } from '../utils/auth'
 
 // This page displays the full details of a single recipe
 // The recipe ID comes from the URL (e.g. /recipes/aRecipeId)
@@ -29,10 +28,12 @@ interface Recipe {
 export default function RecipeDetail() {
     const navigate = useNavigate()
     const { id } = useParams<{ id: string }>()
-    const { accessToken } = useAuth()
 
     const API_URL = import.meta.env.VITE_API_URL
-    const userId = accessToken ? getUserIdFromToken(accessToken) : null
+
+    // logged-in userId from authcontext
+    const { user } = useAuth()
+    const userId = user?.id
 
     const [recipe, setRecipe] = useState<Recipe | null>(null)
     const [loading, setLoading] = useState(true)

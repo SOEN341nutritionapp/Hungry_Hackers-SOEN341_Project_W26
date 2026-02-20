@@ -1,13 +1,11 @@
-// src/pages/RecipeCreate.tsx
-// Form to create a new recipe
-// Has dynamic ingredient and instruction lists
-// Ingredients have +/- buttons for amount and a dropdown for units
-
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, X, ArrowLeft, Minus } from 'lucide-react'
 import { useAuth } from '../AuthContext'
-import { getUserIdFromToken } from '../utils/auth'
+
+// Form to create a new recipe
+// Has dynamic ingredient and instruction lists
+// Ingredients have +/- buttons for amount and a dropdown for units
 
 // Interface for a single ingredient
 interface Ingredient {
@@ -35,13 +33,13 @@ const DIETARY_TAGS = [
 
 export default function RecipeCreate() {
   const navigate = useNavigate()
-  const { accessToken } = useAuth()
 
   // Get API base URL from environment variable
   const API_URL = import.meta.env.VITE_API_URL
 
-  // Decode JWT token to get the logged-in user's ID
-  const userId = accessToken ? getUserIdFromToken(accessToken) : null
+  // Get userId from auth context
+  const { user } = useAuth()
+  const userId = user?.id
 
   // Form state for all recipe fields
   const [title, setTitle] = useState('')

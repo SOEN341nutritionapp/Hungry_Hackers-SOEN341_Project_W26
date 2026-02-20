@@ -51,16 +51,20 @@ export class AuthService {
 
 }
 
-    async login(user: {id:string, email: string}){
-        const payload = {sub: user.id, email: user.email};
-        const accessToken = this.jwtService.sign(payload, {expiresIn: '1h'} );
+    async login(user: any) { 
+        const payload = { sub: user.id, email: user.email };
+        const accessToken = this.jwtService.sign(payload, { expiresIn: '1h' });
+        const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
 
-        const refreshToken = this.jwtService.sign(payload, {expiresIn: '7d', })
-
-        return{
+        return {
             accessToken,
-            refreshToken
-        }
+            refreshToken,
+            user: { 
+                id: user.id, 
+                email: user.email,
+                name: user.name 
+            }
+        };
     }
 
     async findUserById(id: string) {
@@ -83,6 +87,20 @@ verifyToken(token: string) {
   } catch (error) {
     throw new UnauthorizedException('Invalid token');
   }
+}
+
+async updateUser(id: string, data: any) {
+  return this.prisma.user.update({
+    where: { id },
+    data: {
+      name: data.name,
+      dietaryPreferences: data.dietaryPreferences,
+      allergies: data.allergies,
+      sex: data.sex,       
+      heightCm: data.heightCm, 
+      weightKg: data.weightKg, 
+    },
+  });
 }
     
 }

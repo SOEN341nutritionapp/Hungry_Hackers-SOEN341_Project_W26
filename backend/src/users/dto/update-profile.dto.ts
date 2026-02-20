@@ -7,6 +7,10 @@ export class UpdateProfileDto {
 
   @IsOptional()
   @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
   sex?: string;
 
   @IsOptional()

@@ -80,7 +80,7 @@ export default function SignIn() {
                   onChange={(e) => setPassword(e.target.value)}
                   type={showPassword ? 'text' : 'password'} 
                   className="w-full px-4 py-3 rounded-lg border border-gray-300 bg-gray-50 text-slate-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition pr-12"
-                  placeholder="••••••••" 
+                  placeholder="ΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇó" 
                   required
                 />
                 <button
@@ -169,7 +169,7 @@ export default function SignIn() {
 
         {/* Footer */}
         <div className="text-center text-gray-400 text-xs mt-12 font-normal">
-          © 2024 MealMajor Planning Inc. All rights reserved.
+          ┬⌐ 2024 MealMajor Planning Inc. All rights reserved.
         </div>
       </div>
     </div>

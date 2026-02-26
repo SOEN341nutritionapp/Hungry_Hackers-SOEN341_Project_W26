@@ -5,7 +5,7 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
   engineType = "library"
 }
 
@@ -13,20 +13,35 @@ datasource db {
   provider = "postgresql"
 }
 
-
 model User {
-  id                  String   @id @default(uuid())
-  email               String   @unique
-  name                String
-  password            String
-  dateOfBirth         DateTime?
-  sex                 String?
-  heightCm            Int?
-  weightKg            Int?
-  allergies           String[]  @default([]) 
-  dietaryPreferences  String[]  @default([]) 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  id                 String             @id @default(uuid())
+  email              String             @unique
+  name               String
+  password           String
+  dateOfBirth        DateTime?
+  sex                String?
+  heightCm           Int?
+  weightKg           Int?
+  allergies          String[]           @default([])
+  dietaryPreferences String[]           @default([])
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  extensionSessions  ExtensionSession[]
 }
 
+model ExtensionSession {
+  id     String @id @default(cuid()) // internal id
+  jti    String @unique // token id inside JWT
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  revokedAt DateTime?
+
+  // optional metadata
+  userAgent String?
+  label     String? // e.g. "Chrome MV3"
+
+  @@index([userId])
+}

@@ -9,8 +9,8 @@ import { MetroController } from './metro/metro.controller';
 
 
 @Module({
-  imports: [UsersModule, PrismaModule, AuthModule],
-  controllers: [MetroController, AppController],
+  imports: [MetroController, UsersModule, PrismaModule, AuthModule],
+  controllers: [AppController],
   providers: [AppService, PrismaService],
 })
 export class AppModule {}

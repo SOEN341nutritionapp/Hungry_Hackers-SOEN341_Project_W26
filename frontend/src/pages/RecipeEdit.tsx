@@ -400,9 +400,6 @@ export default function RecipeEdit() {
                   min="0"
                 />
               </div>
-
-
-
               <div className="form-control md:col-span-2">
                 <label className="label">
                   <span className="label-text font-medium">Estimated Cost ($)</span>

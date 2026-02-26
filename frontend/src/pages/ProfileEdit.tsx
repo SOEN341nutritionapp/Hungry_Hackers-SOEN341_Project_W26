@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react' 
 import { useNavigate } from 'react-router-dom'
 import * as auth from '../authClient'
+import { X } from 'lucide-react'
 
 
 
@@ -27,14 +28,12 @@ export default function ProfileEdit() {
     allergies: ''
   })
 
+  const [customPreference, setCustomPreference] = useState('')
+
   const availablePreferences = [
-    'Vegetarian',
-    'Vegan',
-    'Gluten-Free',
-    'Dairy-Free',
-    'Keto',
-    'Paleo'
-  ]
+  'Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free',
+  'Keto', 'Paleo', 'Low-Carb', 'High-Protein'
+]
 
   useEffect(() => {
     auth.getProfile()
@@ -201,6 +200,48 @@ export default function ProfileEdit() {
                 )
               })}
             </div>
+            <div className='flex gap-2 mt-3'>
+              <input 
+                type="text"
+                value={customPreference}
+                onChange={(e) => setCustomPreference(e.target.value)}
+                className='input input-bordered flex-1'
+                placeholder='Add custom preference...'
+              />
+              <button
+                onClick={() => {
+                  if (customPreference.trim()){
+                    setProfile({
+                      ...profile,
+                      dietaryPreferences: [...profile.dietaryPreferences, customPreference.trim()]
+                    })
+                    setCustomPreference('')
+                  }
+                }}
+                className='btn btn-primary'
+              >
+                Add
+              </button>
+            </div>
+            {/* show custom preference as badges */}
+            {profile.dietaryPreferences.filter(pref => !availablePreferences.includes(pref)).length > 0 && (
+              <div className='flex flex-wrap gap-2 mt-3'>
+                {profile.dietaryPreferences
+                  .filter(pref => !availablePreferences.includes(pref))
+                  .map((pref) => (
+                    <span key={pref} className='badge badge-accent gap-2'>
+                      {pref}
+                      <button onClick={() => setProfile({
+                        ...profile,
+                        dietaryPreferences: profile.dietaryPreferences.filter(p => p !== pref)
+                      })}>
+                        <X className='h-3 w-3' />
+                      </button>
+                    </span>
+                  ))
+                }
+              </div>
+            )}
           </section>
 
           {/* Allergies */}

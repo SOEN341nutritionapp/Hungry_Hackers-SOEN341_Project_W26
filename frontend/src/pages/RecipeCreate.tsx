@@ -269,7 +269,18 @@ export default function RecipeCreate() {
                   ))}
                 </select>
               </div>
-
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium">Servings</span>
+                </label>
+                <input
+                  type="number"
+                  value={servings}
+                  onChange={(e) => setServings(parseInt(e.target.value) || 1)}
+                  className="input input-bordered w-full"
+                  min="1"
+                />
+              </div>
               <div className="form-control">
                 <label className="label">
                   <span className="label-text font-medium">Prep Time (minutes)</span>
@@ -296,18 +307,7 @@ export default function RecipeCreate() {
                 />
               </div>
 
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium">Servings</span>
-                </label>
-                <input
-                  type="number"
-                  value={servings}
-                  onChange={(e) => setServings(parseInt(e.target.value) || 1)}
-                  className="input input-bordered w-full"
-                  min="1"
-                />
-              </div>
+
 
               <div className="form-control md:col-span-2">
                 <label className="label">

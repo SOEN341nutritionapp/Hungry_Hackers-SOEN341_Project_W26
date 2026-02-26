@@ -24,3 +24,42 @@ export async function apiPost<T>(
   }
   return res.json()
 }
+
+export async function apiGet<T>(path: string, token?: string): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: 'GET',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  })
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.message || 'Request failed')
+  }
+  return res.json()
+}
+
+export async function apiPatch<T>(
+  path: string,
+  body: unknown,
+  token?: string,
+): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+  })
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.message || 'Request failed')
+  }
+  return res.json()
+}

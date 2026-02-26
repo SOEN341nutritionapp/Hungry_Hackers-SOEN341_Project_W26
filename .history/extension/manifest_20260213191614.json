@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Metro → Fridge Sync",
+  "version": "0.1.0",
+  "description": "Adds a Sync to Fridge button on Metro cart and sends items to backend.",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": ["https://www.metro.ca/*"],
+  "background": {
+    "service_worker": "service-worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.metro.ca/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["injected.js"],
+      "matches": ["https://www.metro.ca/*"]
+    }
+  ]
+}

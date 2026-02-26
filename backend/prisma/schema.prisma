@@ -5,7 +5,7 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
   engineType = "library"
 }
 
@@ -13,53 +13,60 @@ datasource db {
   provider = "postgresql"
 }
 
-
 model User {
-  id                  String   @id @default(uuid())
-  email               String   @unique
-  name                String
-  password            String
-  dateOfBirth         DateTime?
-  sex                 String?
-  heightCm            Int?
-  weightKg            Int?
-  allergies           String[]  @default([]) 
-  dietaryPreferences  String[]  @default([]) 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                 String    @id @default(uuid())
+  email              String    @unique
+  name               String
+  password           String
+  dateOfBirth        DateTime?
+  sex                String?
+  heightCm           Int?
+  weightKg           Int?
+  allergies          String[]  @default([])
+  dietaryPreferences String[]  @default([])
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
-  // Relation to the Recipe
-  recipes              Recipe[]
+  recipes           Recipe[]
+  extensionSessions ExtensionSession[]
 }
 
 model Recipe {
-  // unique identifier for this recipe (auto-generated)
-  id                  String   @id @default(uuid()) 
-  // ID of the user who created this recipe (foreign key)
-  userId              String
-  // Relation to User model 
-  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  title               String
-  description         String?
-  imageUrl            String?
-  difficulty          String 
-  prepTime            Float
-  cookTime            Float
-  servings            Int
-  cost                Float?
-  dietaryTags         String[] @default([])
+  title       String
+  description String?
+  imageUrl    String?
+  difficulty  String
+  prepTime    Float
+  cookTime    Float
+  servings    Int
+  cost        Float?
+  dietaryTags String[] @default([])
 
-  // ingredients - json array of objects
-  // example: [{"name":"Eggs", "amount": "240, "unit": "ml" }]
-  ingredients         Json
+  ingredients  Json
+  instructions String[]
 
-  // Instructions - array of steo strings
-  instructions        String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  
   @@index([userId])
 }
 
+model ExtensionSession {
+  id     String @id @default(cuid())
+  jti    String @unique
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  revokedAt DateTime?
+
+  userAgent String?
+  label     String?
+
+  @@index([userId])
+}

@@ -14,73 +14,50 @@ datasource db {
 }
 
 model User {
-<<<<<<< HEAD
-  id                 String             @id @default(uuid())
-  email              String             @unique
+  id                 String    @id @default(uuid())
+  email              String    @unique
   name               String
   password           String
   dateOfBirth        DateTime?
   sex                String?
   heightCm           Int?
   weightKg           Int?
-  allergies          String[]           @default([])
-  dietaryPreferences String[]           @default([])
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
-  extensionSessions  ExtensionSession[]
-=======
-  id                  String   @id @default(uuid())
-  email               String   @unique
-  name                String
-  password            String
-  dateOfBirth         DateTime?
-  sex                 String?
-  heightCm            Int?
-  weightKg            Int?
-  allergies           String[]  @default([]) 
-  dietaryPreferences  String[]  @default([]) 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  allergies          String[]  @default([])
+  dietaryPreferences String[]  @default([])
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
-  // Relation to the Recipe
-  recipes              Recipe[]
+  recipes           Recipe[]
+  extensionSessions ExtensionSession[]
 }
 
 model Recipe {
-  // unique identifier for this recipe (auto-generated)
-  id                  String   @id @default(uuid()) 
-  // ID of the user who created this recipe (foreign key)
-  userId              String
-  // Relation to User model 
-  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  title               String
-  description         String?
-  imageUrl            String?
-  difficulty          String 
-  prepTime            Float
-  cookTime            Float
-  servings            Int
-  cost                Float?
-  dietaryTags         String[] @default([])
+  title       String
+  description String?
+  imageUrl    String?
+  difficulty  String
+  prepTime    Float
+  cookTime    Float
+  servings    Int
+  cost        Float?
+  dietaryTags String[] @default([])
 
-  // ingredients - json array of objects
-  // example: [{"name":"Eggs", "amount": "240, "unit": "ml" }]
-  ingredients         Json
+  ingredients  Json
+  instructions String[]
 
-  // Instructions - array of steo strings
-  instructions        String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  
   @@index([userId])
->>>>>>> 14482c948a70a1d183333571fcc12253fb8a217a
 }
 
 model ExtensionSession {
-  id     String @id @default(cuid()) // internal id
-  jti    String @unique // token id inside JWT
+  id     String @id @default(cuid())
+  jti    String @unique
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -88,9 +65,8 @@ model ExtensionSession {
   expiresAt DateTime
   revokedAt DateTime?
 
-  // optional metadata
   userAgent String?
-  label     String? // e.g. "Chrome MV3"
+  label     String?
 
   @@index([userId])
 }

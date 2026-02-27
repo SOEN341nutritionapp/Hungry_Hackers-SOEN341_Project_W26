@@ -90,11 +90,14 @@
 ## Taras — Special Feature
 **Tasks completed**
 - Defined special feature as a "Fridge" that connects the MealMajor sites to Metro and allows that to populate the fridge so the user would know what they have
-- Prepared 1-page specification
-- Awaiting approval before implementation
+- Implemented the scrapping algorithm
+- Created a chrome browser extension
 - Worked on Acceptance Tests for user stories
+- Setted up the CI pipeline
+- Supervised and management the overall developement of the codebase
 
 
 **Type of work**
 - Product definition
+
 - Planning & documentation

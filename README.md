@@ -2,7 +2,7 @@
 
 Hungry Hackers — SOEN 341 (Winter 2026)
 
-MealMajor is a full-stack web application that helps students manage day-to-day nutrition planning.
+MealMajor is a full-stack web application that helps students manage day to day nutrition planning.
 
 In **Sprint 2**, the project expands beyond authentication to introduce **Recipe Management and Discovery**, enabling users to create, search, and filter recipes within the platform.
 

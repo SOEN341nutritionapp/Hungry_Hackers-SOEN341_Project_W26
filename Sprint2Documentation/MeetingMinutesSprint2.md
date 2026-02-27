@@ -76,8 +76,8 @@ Dylan, Mouawad, Nigel, Ishika, Taras
 - Planning frontend filter interface
 
 ### Taras
-- Special feature defined
-- Preparing 1-page specification for approval
+- Special feature defined and testing completed
+- Review of the implementation of the other features and cleaning up suggestions
 
 ## Decisions Made
 - Continue implementation according to assigned roles
@@ -88,4 +88,5 @@ Dylan, Mouawad, Nigel, Ishika, Taras
 - Complete current sprint tasks
 - Integrate frontend and backend components
 - Review special feature specification
+
 - Prepare for next sprint planning

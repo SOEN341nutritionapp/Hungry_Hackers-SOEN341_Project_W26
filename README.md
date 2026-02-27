@@ -1,49 +1,77 @@
-# 🍽️ MealMajor  
-**Hungry Hackers — SOEN 341 (Winter 2026)**
+# MealMajor
 
-MealMajor is a full-stack web application that helps students manage day-to-day nutrition planning.  
-In **Sprint 1**, the project focuses on **secure user account management**, laying the foundation for future meal-planning features.
+Hungry Hackers — SOEN 341 (Winter 2026)
+
+MealMajor is a full-stack web application that helps students manage day-to-day nutrition planning.
+
+In **Sprint 2**, the project expands beyond authentication to introduce **Recipe Management and Discovery**, enabling users to create, search, and filter recipes within the platform.
 
 ---
 
 ## 📌 Project Overview
 
-MealMajor is a student-oriented platform designed to eventually support:
+MealMajor is a student-oriented nutrition platform designed to support:
 
-- Meal planning  
-- Grocery tracking  
-- Simple recipe discovery  
+* Secure user accounts
+* Personalized dietary preferences
+* Recipe creation and management
+* Advanced recipe filtering
 
-The **current implementation** focuses strictly on **authentication and profile management**, ensuring a secure and extensible base for later sprints.
+Sprint 2 builds directly on the secure authentication foundation from Sprint 1 and introduces core functionality required for meal planning workflows in future sprints.
 
 ---
 
-## 🎯 Sprint 1 Scope
+## 🎯 Sprint 2 Scope
 
 The following features are fully implemented in this sprint:
 
-- User registration with secure password hashing  
-- User login with JWT-based authentication  
-- Refresh-token flow using HTTP-only cookies  
-- Protected frontend routes  
-- Editable user profile data:
-  - Date of birth
-  - Sex
-  - Height & weight
-  - Allergies
-  - Dietary preferences
+### 🍳 Recipe Management
+
+* Create recipes
+* Edit existing recipes
+* Delete recipes
+* Store detailed recipe attributes:
+
+  * Ingredients
+  * Preparation steps
+  * Preparation time
+  * Cook time
+  * Difficulty
+  * Cost
+  * Dietary tags
+  * Servings
+
+### 🔎 Search & Filtering
+
+* Search recipes by title
+* Filter recipes by:
+
+  * Time
+  * Difficulty
+  * Cost
+  * Dietary tag
+  * Servings
+
+### 🔗 Chrome Extension Integration (Special Feature)
+
+* Chrome extension for Metro grocery platform
+* Scraping algorithm to extract cart item data
+* POST request to send scraped data to MealMajor backend
+
+This extension lays groundwork for future grocery tracking features.
 
 ---
 
 ## 🧱 Architecture
 
-This project is structured as a **monorepo**:
+The project remains structured as a monorepo:
 
 ```
 .
 ├── backend/        # NestJS API + Prisma + PostgreSQL
 ├── frontend/       # React + Vite client
-├── README.md       # Project documentation
+├── chrome-extension/  # Metro scraping extension
+├── README.md
 ├── sprint-plan.md
 └── Contribution-log.md
 ```
@@ -53,27 +81,36 @@ This project is structured as a **monorepo**:
 ## 🛠️ Technology Stack
 
 ### Frontend
-- React 19
-- TypeScript
-- Vite
-- React Router
-- Tailwind CSS
-- DaisyUI
+
+* React 19
+* TypeScript
+* Vite
+* React Router
+* Tailwind CSS
+* DaisyUI
 
 ### Backend
-- Node.js
-- NestJS
-- TypeScript
-- Prisma ORM
-- PostgreSQL
-- JWT Authentication (`@nestjs/jwt`, `jsonwebtoken`)
-- `bcrypt` for password hashing
-- `cookie-parser` for refresh token handling
+
+* Node.js
+* NestJS
+* TypeScript
+* Prisma ORM
+* PostgreSQL
+* JWT Authentication
+* bcrypt
+* cookie-parser
+
+### Extension
+
+* Chrome Extension API
+* DOM scraping logic
+* Fetch API for POST integration
 
 ### Tooling
-- ESLint
-- Jest (unit & e2e testing)
-- Docker Compose (PostgreSQL)
+
+* ESLint
+* Jest (unit & e2e testing)
+* Docker Compose (PostgreSQL)
 
 ---
 
@@ -81,13 +118,12 @@ This project is structured as a **monorepo**:
 
 Before running the project, ensure you have:
 
-- **Node.js** v20+ (LTS recommended)
-- **npm** v10+
-- **Docker & Docker Compose**
+* Node.js v20+
+* npm v10+
+* Docker & Docker Compose
+* Google Chrome (for extension testing)
 
-### Environment Variables
-
-Create a `.env` file in `backend/`:
+Environment variables remain the same as Sprint 1:
 
 ```
 PORT=3000
@@ -95,27 +131,17 @@ JWT_SECRET=your-super-secret-key
 DATABASE_URL=postgresql://mealmajor:mealmajor@localhost:5433/mealmajor
 ```
 
-**Notes:**
-- Frontend expects backend at `http://localhost:3000`
-- CORS is configured for `http://localhost:5173`
-
 ---
 
 ## ▶️ Running the Project
 
-### Step 1 — Start the Database
+### Step 1 — Start Database
 
-From the `backend/` directory:
+From backend/:
 
 ```
 npm install
-npm run build
 docker compose up -d
-```
-
-Apply Prisma migrations:
-
-```
 npx prisma migrate deploy
 ```
 
@@ -127,21 +153,22 @@ npx prisma migrate dev
 
 ---
 
-### Step 2 — Run the Backend API
+### Step 2 — Run Backend API
 
 ```
 cd backend
-npm install
 npm run start:dev
 ```
 
 Backend runs at:
 
-- `http://localhost:3000`
+```
+http://localhost:3000
+```
 
 ---
 
-### Step 3 — Run the Frontend
+### Step 3 — Run Frontend
 
 ```
 cd frontend
@@ -151,26 +178,30 @@ npm run dev
 
 Frontend runs at:
 
-- `http://localhost:5173`
+```
+http://localhost:5173
+```
 
 ---
 
-## 🔌 API Endpoints (Sprint 1)
+## 🔌 API Endpoints (Sprint 2 Additions)
 
-### Authentication (`/auth`)
+### Recipes (/recipes)
 
-| Method | Endpoint | Description |
-|------|---------|-------------|
-| POST | `/auth/register` | Register a new user |
-| POST | `/auth/login` | Login and receive access token |
-| POST | `/auth/refresh` | Refresh access token via cookie |
-| POST | `/auth/logout` | Clear refresh-token cookie |
+| Method | Endpoint     | Description         |
+| ------ | ------------ | ------------------- |
+| POST   | /recipes     | Create a new recipe |
+| GET    | /recipes     | Get all recipes     |
+| GET    | /recipes/:id | Get single recipe   |
+| PATCH  | /recipes/:id | Update recipe       |
+| DELETE | /recipes/:id | Delete recipe       |
 
-### Users (`/users`)
+### Filtering & Search
 
-| Method | Endpoint | Description |
-|------|---------|-------------|
-| PATCH | `/users/:id/profile` | Update user profile information |
+| Method | Endpoint         | Description                                   |
+| ------ | ---------------- | --------------------------------------------- |
+| GET    | /recipes?search= | Search by title                               |
+| GET    | /recipes?filter= | Filter by difficulty, time, cost, dietary tag |
 
 ---
 
@@ -179,43 +210,41 @@ Frontend runs at:
 ### Frontend
 
 ```
-npm run dev        # Start development server
-npm run build      # Type-check & build
-npm run lint       # Run ESLint
-npm run preview    # Preview production build
+npm run dev
+npm run build
+npm run lint
+npm run preview
 ```
 
 ### Backend
 
 ```
-npm run start:dev  # Start NestJS in watch mode
-npm run build      # Compile backend
-npm run lint       # Run ESLint
-npm run test       # Unit tests
-npm run test:e2e   # End-to-end tests
+npm run start:dev
+npm run build
+npm run lint
+npm run test
+npm run test:e2e
 ```
 
 ---
 
-## 🔮 Next Steps
+## 🚀 Improvements from Sprint 1
 
-Planned future iterations include:
-
-- Meal planning workflows
-- Grocery list tracking
-- Recipe recommendations
-- Expanded authorization and personalization features
+* Extended Prisma schema to include Recipe model
+* Implemented CRUD operations with validation
+* Added frontend filtering logic and UI controls
+* Integrated extension-to-backend communication
+* Expanded unit and integration testing
 
 ---
 
 ## 👥 Team — Hungry Hackers
 
-| Name | Role |
-|------|-----|
-| Taras | Backend Developer |
-| Ishika | Backend & Documentation |
-| Nigel | Backend Developer |
-| Dylan | Frontend Developer |
-| Mouawad | Frontend & Documentation |
+| Name    | Role                          |
+| ------- | ----------------------------- |
+| Taras   | Backend & Chrome Extension    |
+| Ishika  | Frontend (Search & Filtering) |
+| Nigel   | Backend (Recipe API)          |
+| Dylan   | Frontend (Recipe UI & Pages)  |
+| Mouawad | Documentation & Testing       |
 
----

@@ -28,6 +28,7 @@ model User {
   updatedAt          DateTime  @updatedAt
 
   recipes           Recipe[]
+  mealPlans         MealPlan[]
   extensionSessions ExtensionSession[]
 }
 
@@ -49,6 +50,8 @@ model Recipe {
   ingredients  Json
   instructions String[]
 
+  mealPlans    MealPlan[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -69,4 +72,23 @@ model ExtensionSession {
   label     String?
 
   @@index([userId])
+}
+
+model MealPlan {
+  id                 String  @id @default(uuid())
+  userId             String
+  recipeId           String
+  date               DateTime
+  mealType           String   // breakfast | lunch | dinner | snack
+  weekStart          DateTime // Monday of the week (for easy querying)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // Relations between other tables
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipe             Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  // Prevent duplicates for the SAME day 
+  @@unique([userId, recipeId, date, mealType])
+  @@index([userId, weekStart])
 }

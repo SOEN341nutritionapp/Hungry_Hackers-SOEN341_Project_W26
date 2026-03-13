@@ -12,6 +12,7 @@ import RecipeCreate from './pages/RecipeCreate'
 import RecipeList from './pages/RecipeList'
 import RecipeEdit from './pages/RecipeEdit'
 
+import CalendarPage from './pages/CalendarPage'
 
 export default function App() {
   return (
@@ -30,6 +31,7 @@ export default function App() {
           <Route path="/recipes/new" element={<RecipeCreate />} />
           <Route path="/recipes/:id" element={<RecipeDetail />} />
           <Route path="/recipes/:id/edit" element={<RecipeEdit />} />
+          <Route path="/calendar" element={<CalendarPage />} />
         </Route>
       </Route>
     </Routes>

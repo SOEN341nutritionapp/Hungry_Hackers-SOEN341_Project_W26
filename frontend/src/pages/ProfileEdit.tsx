@@ -97,6 +97,8 @@ export default function ProfileEdit() {
       <div className="mb-6">
         <h2 className="text-3xl font-bold text-base-content">Edit Profile</h2>
         <p className="opacity-70">Update your account details and dietary settings.</p>
+        <div className="mt-2 h-1 w-20 rounded-full bg-primary/70"></div>
+
       </div>
 
       <div className="card bg-base-100 border border-base-300 shadow-sm">

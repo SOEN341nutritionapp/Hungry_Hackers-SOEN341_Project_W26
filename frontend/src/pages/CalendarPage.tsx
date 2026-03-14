@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../AuthContext'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import CalendarGrid from '../components/CalendarGrid'
 
 /*
     This page displays a weekly meal plammer where users can view and manage
@@ -55,6 +56,7 @@ export default function CalendarPage() {
             setError(null)   // clear any precious errors
             // convert Date to string format '2026-03-03' for API
             const weekStartString = currentWeekStart.toISOString().split('T')[0]
+
             // call backend to get all the meals for this week 
             const response = await fetch(`${API_URL}/meal-plans/${userId}/${weekStartString}`)
 
@@ -63,10 +65,10 @@ export default function CalendarPage() {
             }
             // parse response and store in state
             const data = await response.json()
+
             setMeals(data)
         } catch (err){
             setError(err instanceof Error ? err.message : 'An error occured')
-            console.error('Error fetching meals:', err)
         } finally {
             setLoading(false)
         }
@@ -108,7 +110,7 @@ export default function CalendarPage() {
 
     // Main Calendar Page
     return (
-        <div className='max-w-7xl'>
+        <div className='w-6xl'>
             {/* Page header */}
             <div className='mb-6'>
                 <h2 className='text-3xl font-bold text-base-content'>My Weekly Meal Plan</h2>
@@ -137,27 +139,26 @@ export default function CalendarPage() {
 
                         </button>
                     </div>
-                    <div className="card bg-base-100 border border-base-300 shadow-sm p-6">
-                        <p className="text-center text-base-content opacity-50">
-                            Calendar grid coming next...
-                        </p>
-                        <p className="text-center text-sm opacity-30 mt-2">
-                            Loaded {meals.length} meals for this week
-                        </p>
-                    </div>
+                    {/* Calendar Grid */}
+                    <CalendarGrid 
+                        weekStart={currentWeekStart}
+                        meals={meals}
+                        onMealAdded={fetchMeals}
+                        onMealDeleted={fetchMeals}
+                    />
                 </div>
 
                 {/* RIGHT: Recipe Sidebar (Dev 2's work) */}
-                <div className="w-70">
-                    <div className="card bg-base-100 border border-base-300 shadow-sm p-20">
-                        <p className="text-center text-base-content opacity-50">
-                            Recipe sidebar
+                {/* <div className="w-50">
+                    <div className="card bg-base-100 border border-base-300 shadow-sm p-9">
+                        <p className="text-center text-base-content">
+                            Recipe sidebar - tbd
                         </p>
                         <p className="text-center text-sm opacity-30 mt-2">
                             Dev 2 
                         </p>
                     </div>
-                </div>
+                </div> */}
             </div>
         </div>
     )

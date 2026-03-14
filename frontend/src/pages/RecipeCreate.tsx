@@ -194,6 +194,8 @@ export default function RecipeCreate() {
       <div className="mb-6">
         <h2 className="text-3xl font-bold text-base-content">Create Recipe</h2>
         <p className="opacity-70">Add a new recipe to your collection</p>
+        <div className="mt-2 h-1 w-20 rounded-full bg-primary/70"></div>
+
       </div>
 
       {/* Error message */}

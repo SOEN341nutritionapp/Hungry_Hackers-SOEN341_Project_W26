@@ -272,6 +272,8 @@ export default function RecipeEdit() {
         <div>
           <h2 className="text-3xl font-bold text-base-content">Edit Recipe</h2>
           <p className="opacity-70">Update your recipe details</p>
+          <div className="mt-2 h-1 w-20 rounded-full bg-primary/70"></div>
+
         </div>
 
         <button

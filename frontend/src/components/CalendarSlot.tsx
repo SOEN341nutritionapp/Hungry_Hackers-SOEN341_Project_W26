@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, X } from 'lucide-react'
 import AddMealModal from './AddMealModal' 
+import { useAuth } from '../AuthContext'
 
 
 /* 
@@ -26,6 +27,10 @@ export default function CalendarSlot({
 }: CalendarSlotProps) 
     {
     const navigate = useNavigate()
+
+    const { user } = useAuth()
+    const userId = user?.id
+    const API_URL = import.meta.env.VITE_API_URL
     
     // State for AddMealModal
     const [isModalOpen, setIsModalOpen] = useState(false)  
@@ -46,14 +51,29 @@ export default function CalendarSlot({
     }
 
     // HANDLER: Click X button -> Delete meal
-    const handleDeleteClick = (e: React.MouseEvent) => {
+    const handleDeleteClick = async (e: React.MouseEvent) => {
         e.stopPropagation()  // Don't trigger recipe click when clicking X
         
-        // TODO: We'll implement DELETE endpoint call here
-        console.log('Delete meal:', existingMeal.id)
+        if(!confirm('Remove this meal from your calendar?')){
+            return
+        }
+        try {
+            const response = await fetch(`${API_URL}/meal-plans/${userId}/${existingMeal.id}`, {
+                method: 'DELETE'
+            })
+
+            if(!response.ok) {
+                throw new Error('Failed to delete meal')
+            }
+            onMealDeleted()
+
+        } catch (err) {
+            alert('Failed to delete meal')
+            console.error('Error deleting meal')
+        }
     }
 
-    // DRAG & DROP HANDLERS (for Dev 2) 
+    // =============== DRAG & DROP HANDLERS (Dylan) ====================
     const handleDragOver = (e: React.DragEvent) => {
         e.preventDefault()  // Allow drop
         if (!existingMeal) {  // Only if slot is empty
@@ -63,17 +83,40 @@ export default function CalendarSlot({
     const handleDragLeave = () => {
         setIsDragOver(false)
     }
-    const handleDrop = (e: React.DragEvent) => {
+    const handleDrop = async (e: React.DragEvent) => {
         e.preventDefault()
         setIsDragOver(false)
         
-        if (existingMeal) return  // Can't drop on filled slot
+        if(existingMeal) return  // Can't drop on filled slot
         
         // Get recipe ID from drag data (Dev 2)
         const recipeId = e.dataTransfer.getData('recipeId')
-        
-        // TODO: Call POST endpoint to create meal plan
-        console.log('Recipe dropped:', recipeId, 'on', date, mealType)
+
+        if (!recipeId) return 
+       
+        try {
+            const dateString = date.toISOString().split('T')[0]
+            const response = await fetch(`${API_URL}/meal-plans/${userId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    recipeId,
+                    date: dateString,
+                    mealType,
+                })
+            })
+    
+            if (!response.ok) {
+                throw new Error('Failed to add meal')
+            }
+    
+            // Success Refresh calendar
+            onMealAdded()
+    
+        } catch (err) {
+            alert('Failed to add meal from drag-drop')
+            console.error('Error in handleDrop:', err)
+        }
     }
 
     // RENDER: Filled Slot (has a meal)

@@ -118,7 +118,7 @@ export default function CalendarPage() {
                 <div className="mt-2 h-1 w-20 rounded-full bg-primary/70"></div>
 
             </div>
-
+            
             {/* Calendar Grid Container (to be done) */}
             <div className="flex gap-6">
                 {/* LEFT: Calendar Grid (Your work - Dev 1) */}
@@ -147,18 +147,16 @@ export default function CalendarPage() {
                         onMealDeleted={fetchMeals}
                     />
                 </div>
+                {/*<div className="w-10">
+                    {/*=============== RIGHT: Recipe Sidebar (Dylan)=========== */}
+                    {/* this is where you add your recipesidebar component
+                        i'd suggest to create a separate file for it, perhaps a RecipeSidebar.tsx in the components folder
+                            make sure you import it here after
+                        also the calendar slots are already set up to receive drops
+                        check out CalendarSlots.tsx in the components folder 
+                    
+                </div>*/}  
 
-                {/* RIGHT: Recipe Sidebar (Dev 2's work) */}
-                {/* <div className="w-50">
-                    <div className="card bg-base-100 border border-base-300 shadow-sm p-9">
-                        <p className="text-center text-base-content">
-                            Recipe sidebar - tbd
-                        </p>
-                        <p className="text-center text-sm opacity-30 mt-2">
-                            Dev 2 
-                        </p>
-                    </div>
-                </div> */}
             </div>
         </div>
     )

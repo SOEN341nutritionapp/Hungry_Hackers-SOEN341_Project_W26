@@ -44,6 +44,8 @@ export default function Profile() {
         <div>
           <h2 className="text-3xl font-bold text-base-content">Profile</h2>
           <p className="opacity-70">Your account and dietary info.</p>
+          <div className="mt-2 h-1 w-20 rounded-full bg-primary/70"></div>
+
         </div>
         <button 
           onClick={() => navigate('/profile/edit')}

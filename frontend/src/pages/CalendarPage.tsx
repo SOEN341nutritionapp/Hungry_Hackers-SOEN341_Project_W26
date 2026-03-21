@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../AuthContext'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import CalendarGrid from '../components/CalendarGrid'
+import RecipeSidebar from '../components/RecipeSidebar';
 
 /*
     This page displays a weekly meal plammer where users can view and manage
@@ -116,11 +117,10 @@ export default function CalendarPage() {
                 <h2 className='text-3xl font-bold text-base-content'>My Weekly Meal Plan</h2>
                 <p className='opacity-70'>Plan your meals for the week ahead!</p>
                 <div className="mt-2 h-1 w-20 rounded-full bg-primary/70"></div>
-
             </div>
             
             {/* Calendar Grid Container (to be done) */}
-            <div className="flex gap-6">
+            <div className="flex gap-6 items-start">
                 {/* LEFT: Calendar Grid (Your work - Dev 1) */}
                 <div className="flex-1">
                     {/* Week Navigator */}
@@ -147,15 +147,12 @@ export default function CalendarPage() {
                         onMealDeleted={fetchMeals}
                     />
                 </div>
-                {/*<div className="w-10">
-                    {/*=============== RIGHT: Recipe Sidebar (Dylan)=========== */}
-                    {/* this is where you add your recipesidebar component
-                        i'd suggest to create a separate file for it, perhaps a RecipeSidebar.tsx in the components folder
-                            make sure you import it here after
-                        also the calendar slots are already set up to receive drops
-                        check out CalendarSlots.tsx in the components folder 
-                    
-                </div>*/}  
+
+                {/* RIGHT: Recipe Sidebar (Dylan - Dev 2) */}
+                <aside className="flex-none">
+                    {/* This component handles fetching and displaying draggable recipes */}
+                    <RecipeSidebar userId={userId} />
+                </aside>  
 
             </div>
         </div>

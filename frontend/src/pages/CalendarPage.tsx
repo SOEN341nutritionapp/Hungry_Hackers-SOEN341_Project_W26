@@ -109,6 +109,18 @@ export default function CalendarPage() {
         )
     }
 
+
+    // Returns true if any meal in the current week matches this ID
+    const isDuplicateMeal = (recipeId: string): boolean => {
+    return meals.some((meal) => {
+        // Look for the ID in the meal object OR the nested recipe object
+        const idToCompare = meal.recipeId || meal.recipe?.id;
+        // Convert both to strings to ensure a perfect match
+        return String(idToCompare) === String(recipeId);
+    });
+    };
+
+
     // Main Calendar Page
     return (
         <div className='w-6xl'>
@@ -145,6 +157,7 @@ export default function CalendarPage() {
                         meals={meals}
                         onMealAdded={fetchMeals}
                         onMealDeleted={fetchMeals}
+                        isDuplicateCheck={isDuplicateMeal} 
                     />
                 </div>
 

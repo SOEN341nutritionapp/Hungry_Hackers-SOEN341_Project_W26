@@ -16,6 +16,7 @@ interface CalendarSlotProps {
     existingMeal?: any      // The meal plan if one exists, undefined if empty
     onMealAdded: () => void // Callback when meal is added
     onMealDeleted: () => void // Callback when meal is deleted
+    isDuplicateCheck: (recipeId: string) => boolean; //Check if recipe is already planned for the week
 }
 
 export default function CalendarSlot({ 
@@ -23,8 +24,10 @@ export default function CalendarSlot({
     mealType, 
     existingMeal, 
     onMealAdded, 
-    onMealDeleted 
+    onMealDeleted,
+    isDuplicateCheck
 }: CalendarSlotProps) 
+
     {
     const navigate = useNavigate()
 
@@ -83,24 +86,39 @@ export default function CalendarSlot({
     const handleDragLeave = () => {
         setIsDragOver(false)
     }
-    const handleDrop = async (e: React.DragEvent) => {
-        e.preventDefault()
-        setIsDragOver(false)
-        
-        if(existingMeal) return  // Can't drop on filled slot
-        
-        // Get recipe ID from drag data (Dev 2)
-        const recipeId = e.dataTransfer.getData('recipeId')
 
-        if (!recipeId) return 
-       
+
+
+    const handleDrop = async (e: React.DragEvent) => {
+       e.preventDefault();
+        setIsDragOver(false);
+
+        //Exit early if the slot is already occupied
+        if(existingMeal) return;
+
+        //Extract the ID 
+        const recipeId = e.dataTransfer.getData('recipeId');
+
+        //Block URLs, If the browser grabbed a link, stop here so the backend doesn't crash
+        if (!recipeId || recipeId.startsWith('http')) {
+            console.warn("Invalid drop ignored:", recipeId);
+            return;
+        }
+
+        //Ensure recipe isnt already in the week
+        if (isDuplicateCheck(recipeId)) {
+            alert("This recipe is already planned for this week!");
+            return; 
+        }
+        
         try {
             const dateString = date.toISOString().split('T')[0]
+            //Execute POST: Link the recipe to the specific date and meal category
             const response = await fetch(`${API_URL}/meal-plans/${userId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    recipeId,
+                    recipeId, // Passing the recipeId string
                     date: dateString,
                     mealType,
                 })
@@ -110,7 +128,7 @@ export default function CalendarSlot({
                 throw new Error('Failed to add meal')
             }
     
-            // Success Refresh calendar
+            //Refresh the global calendar state to show the new meal immediately
             onMealAdded()
     
         } catch (err) {

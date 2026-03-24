@@ -21,9 +21,10 @@ interface CalendarGridProps {
     meals: any[]             // Array of meal plans from backend
     onMealAdded: () => void  // Callback to refresh meals after adding
     onMealDeleted: () => void // Callback to refresh meals after deleting
+    isDuplicateCheck: (recipeId: string) => boolean; //Check if recipe is already planned for the week
 }
 
-export default function CalendarGrid({ weekStart, meals, onMealAdded, onMealDeleted }: CalendarGridProps) {
+export default function CalendarGrid({ weekStart, meals, onMealAdded, onMealDeleted, isDuplicateCheck }: CalendarGridProps) {
   
     // HELPER: Get date for a specific day offset
     const getDayDate = (dayIndex: number): Date => {
@@ -96,6 +97,7 @@ const findMeal = (date: Date, mealType: string) => {
                         existingMeal={meal}
                         onMealAdded={onMealAdded}
                         onMealDeleted={onMealDeleted}
+                        isDuplicateCheck={isDuplicateCheck}
                         />
                     )
                 })}

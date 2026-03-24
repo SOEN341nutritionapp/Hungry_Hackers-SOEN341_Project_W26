@@ -9,10 +9,12 @@ interface RecipeCardProps {
 }
 
 export default function RecipeCard({ recipe }: RecipeCardProps) {
+    
+    //Function when user starts to drag recipe card
     const handleDragStart = (e: React.DragEvent) => {
-        // Attach the ID to the drag event for the calendar to read
-        e.dataTransfer.setData('recipeId', recipe.id.toString());
-        e.dataTransfer.effectAllowed = 'copy';
+    e.dataTransfer.setData('recipeId', recipe.id.toString());
+    e.dataTransfer.effectAllowed = 'copy'; //Notifies browser that dragged item is being copied to a new location
+    console.log("SENDING ID FROM CARD:", recipe.id);
     };
 
     return (

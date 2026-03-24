@@ -8,7 +8,9 @@ interface RecipeSidebarProps {
 
 export default function RecipeSidebar({ userId }: RecipeSidebarProps) {
     const [recipes, setRecipes] = useState<any[]>([]);
+    const [searchTerm, setSearchTerm] = useState("");
 
+    //Fetches the recipe list based on the logged-in user's ID
     useEffect(() => {
         if (userId) {
             apiGet<any[]>(`/recipes/${userId}`)
@@ -16,6 +18,9 @@ export default function RecipeSidebar({ userId }: RecipeSidebarProps) {
                 .catch((err) => console.error("Error fetching recipes:", err));
         }
     }, [userId]);
+    const filteredRecipes = recipes.filter((recipe) =>
+    recipe.title.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     return (
         <div className="w-80 bg-slate-50/50 backdrop-blur-sm p-5 rounded-3xl flex flex-col h-[750px] shadow-inner border border-slate-200 sticky top-6">
@@ -28,15 +33,30 @@ export default function RecipeSidebar({ userId }: RecipeSidebarProps) {
                     {recipes.length} recipes available
                 </p>
             </div>
+
+            <div className="px-1 mb-4">
+                <input
+                    type="text"
+                    placeholder="Search by title..."
+                    className="w-full px-4 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-400 shadow-sm"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </div>
+
+
             
             <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-                {recipes.length > 0 ? (
-                    recipes.map((recipe) => (
+                {filteredRecipes.length > 0 ? (
+                    // Renders the list of recipes as draggable RecipeCard components
+                    filteredRecipes.map((recipe) => (
                         <RecipeCard key={recipe.id} recipe={recipe} />
                     ))
                 ) : (
                     <div className="flex flex-col items-center justify-center mt-20">
-                        <p className="text-sm font-medium text-slate-400">No recipes found</p>
+                        <p className="text-sm font-medium text-slate-400">
+                            {searchTerm ? "No matches found" : "No recipes found"}
+                        </p>
                     </div>
                 )}
             </div>

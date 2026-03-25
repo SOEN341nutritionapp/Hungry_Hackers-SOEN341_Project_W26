@@ -71,6 +71,15 @@ export default function AddMealModal({
                     mealType
                 })
             })
+            // ========================================================================
+            // Handle duplicate error (409 Conflict)
+            // ========================================================================
+            if (response.status === 409) {
+                 const error = await response.json();
+                 alert(error.message || 'This recipe is already planned for this week.');
+                 return; // Don't close modal, let user pick another recipe
+             }
+            // ========================================================================
 
             if (!response.ok) {
                 throw new Error('Failed to add meal')

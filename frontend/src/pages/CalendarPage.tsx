@@ -134,7 +134,7 @@ export default function CalendarPage() {
             {/* Calendar Grid Container (to be done) */}
             <div className="flex gap-6 items-start">
                 {/* LEFT: Calendar Grid (Your work - Dev 1) */}
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                     {/* Week Navigator */}
                     <div className="flex items-center justify-center gap-4 mb-6">
                         <button onClick={handlePreviousWeek} className='btn btn-outline btn-primary gap-2'>
@@ -162,7 +162,7 @@ export default function CalendarPage() {
                 </div>
 
                 {/* RIGHT: Recipe Sidebar (Dylan - Dev 2) */}
-                <aside className="flex-none">
+                <aside className="flex-none w-60">
                     {/* This component handles fetching and displaying draggable recipes */}
                     <RecipeSidebar userId={userId} />
                 </aside>  

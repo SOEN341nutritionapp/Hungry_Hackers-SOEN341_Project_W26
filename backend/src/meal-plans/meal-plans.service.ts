@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateMealPlanDto } from './dto/create-meal-plan.dto';
 
@@ -67,6 +67,21 @@ private getWeekStart(date: Date): Date {
                 
         const weekStart = this.getWeekStart(mealDate);
         
+        // ========== CHECK FOR DUPLICATE ==========
+        const existingMealInWeek = await this.prisma.mealPlan.findFirst({
+            where: {
+            userId,
+            recipeId,
+            weekStart,
+            },
+        });
+
+        if (existingMealInWeek) {
+            throw new ConflictException(
+            'This recipe is already planned for this week!'
+            );
+        }
+        // =========================================
         return this.prisma.mealPlan.create({
             data: {
                 userId,

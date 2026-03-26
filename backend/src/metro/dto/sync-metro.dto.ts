@@ -19,6 +19,14 @@ export class SyncMetroItemDto {
   @IsInt()
   @Min(1)
   unitFactor?: number;
+
+  @IsOptional()
+  @IsString()
+  sizeLabel?: string;
+
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
 }
 
 export class SyncMetroDto {

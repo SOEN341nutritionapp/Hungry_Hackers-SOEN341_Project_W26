@@ -41,7 +41,15 @@ function sendRuntimeMessage(message) {
   return new Promise((resolve, reject) => {
     chrome.runtime.sendMessage(message, (response) => {
       if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
+        const rawMessage = chrome.runtime.lastError.message || "Extension request failed";
+        const isInvalidated = /context invalidated/i.test(rawMessage);
+        reject(
+          new Error(
+            isInvalidated
+              ? "The extension was reloaded. Refresh the Metro cart page, then click Sync again."
+              : rawMessage,
+          ),
+        );
         return;
       }
 
@@ -95,8 +103,7 @@ function scrapeCart() {
 
   console.log(`${TAG} Found ${productElements.length} product elements`);
 
-  const items = [];
-  const seen = new Set();
+  const itemsByKey = new Map();
 
   for (const element of productElements) {
     try {
@@ -104,47 +111,88 @@ function scrapeCart() {
 
       if (!item) continue;
 
-      const key = item.name.toLowerCase();
-      if (seen.has(key)) {
-        console.log(`${TAG} Skipping duplicate: ${item.name}`);
+      const key = [
+        item.name.toLowerCase(),
+        item.sizeLabel || "",
+      ].join("::");
+      const existing = itemsByKey.get(key);
+
+      if (existing) {
+        existing.quantity += item.quantity;
+
+        if (!existing.unit && item.unit) existing.unit = item.unit;
+        if (!existing.unitFactor && item.unitFactor) existing.unitFactor = item.unitFactor;
+        if (!existing.sizeLabel && item.sizeLabel) existing.sizeLabel = item.sizeLabel;
+        if (!existing.imageUrl && item.imageUrl) existing.imageUrl = item.imageUrl;
+
+        console.log(`${TAG} Merged duplicate: ${item.name} (qty: ${existing.quantity})`, existing);
         continue;
       }
 
-      seen.add(key);
-      items.push(item);
+      itemsByKey.set(key, item);
       console.log(`${TAG} Added ${item.name} (qty: ${item.quantity})`, item);
     } catch (error) {
       console.error(`${TAG} Error extracting product:`, error);
     }
   }
 
-  return items;
+  return [...itemsByKey.values()];
 }
 
 function extractProductData(element) {
-  const name = extractProductName(element);
+  const productRoot = resolveProductRoot(element);
+  const name = extractProductName(element, productRoot);
   if (!name) {
     console.warn(`${TAG} Product element missing name`, element);
     return null;
   }
 
-  const quantity = extractQuantity(element);
-  const unitDetails = extractUnitDetails(element);
+  const quantity = extractQuantity(element, productRoot);
+  const unitDetails = extractUnitDetails(productRoot);
+  const imageUrl = extractImageUrl(productRoot);
 
   return {
     name,
     quantity,
     ...unitDetails,
+    ...(imageUrl ? { imageUrl } : {}),
   };
 }
 
-function extractProductName(element) {
-  const name = element.getAttribute("data-product-name");
-  return name && name.length >= 2 ? name.trim() : null;
+function resolveProductRoot(element) {
+  return (
+    element.closest(".product-line-cart-first-group") ||
+    element.closest(".product-line-cart") ||
+    element.closest("[class*='product-line-cart']") ||
+    element.closest(".basket-product-tile") ||
+    element
+  );
 }
 
-function extractQuantity(element) {
-  const quantityAttribute = element.getAttribute("data-qty");
+function extractProductName(element, productRoot) {
+  const candidates = [
+    element.getAttribute("data-product-name"),
+    productRoot.getAttribute("data-product-name"),
+    productRoot.querySelector("[data-product-name]")?.getAttribute("data-product-name"),
+    productRoot.querySelector("img[alt]")?.getAttribute("alt"),
+    productRoot.querySelector(".product-details-link[title]")?.getAttribute("title"),
+    productRoot.querySelector(".product-details-link")?.textContent,
+  ];
+
+  for (const candidate of candidates) {
+    if (candidate && candidate.trim().length >= 2) {
+      return candidate.trim();
+    }
+  }
+
+  return null;
+}
+
+function extractQuantity(element, productRoot) {
+  const quantityAttribute =
+    element.getAttribute("data-qty") ||
+    productRoot.getAttribute("data-qty") ||
+    productRoot.querySelector("[data-qty]")?.getAttribute("data-qty");
 
   if (!quantityAttribute) {
     console.warn(`${TAG} Missing data-qty attribute, defaulting to 1`);
@@ -162,7 +210,9 @@ function extractQuantity(element) {
 }
 
 function extractUnitDetails(element) {
-  const detailsElement = element.querySelector(".head__unit-details");
+  const detailsElement =
+    element.querySelector(".head__unit-details") ||
+    element.querySelector("[class*='unit-details']");
 
   if (!detailsElement) {
     return {};
@@ -176,10 +226,12 @@ function extractUnitDetails(element) {
 
   const unitFactor = extractUnitFactor(detailsElement, text);
   const unit = extractUnit(text);
+  const sizeLabel = extractSizeLabel(text);
   const result = {};
 
   if (unitFactor) result.unitFactor = unitFactor;
   if (unit) result.unit = unit;
+  if (sizeLabel) result.sizeLabel = sizeLabel;
 
   return result;
 }
@@ -209,6 +261,74 @@ function extractUnitFactor(detailsElement, text) {
 function extractUnit(text) {
   const match = text.match(/\b(g|kg|ml|l|lb|oz)\b/i);
   return match ? match[1].toLowerCase() : null;
+}
+
+function extractSizeLabel(text) {
+  const compactText = text.replace(/\s+/g, " ").trim();
+  const match = compactText.match(
+    /\b\d+\s*[xX]\s*\d+(?:[.,]\d+)?\s*(?:g|kg|ml|l|lb|oz)\b|\b\d+(?:[.,]\d+)?\s*(?:g|kg|ml|l|lb|oz|ea|each|un)\b/i,
+  );
+
+  if (!match) {
+    return null;
+  }
+
+  return match[0]
+    .replace(/\s*[xX]\s*/g, " x ")
+    .replace(/(\d)([A-Za-z])/g, "$1 $2")
+    .replace(/([A-Za-z])(\d)/g, "$1 $2")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractImageUrl(element) {
+  const imageElement = element.querySelector(
+    "a.product-details-link.pc-thumbnail img, .pc-first-column a.product-details-link img, .pc-thumbnail img, .pc-first-column img, img.defaultable-picture, img",
+  );
+
+  if (!imageElement) {
+    return null;
+  }
+
+  const candidates = [
+    imageElement.currentSrc,
+    imageElement.getAttribute("src"),
+    imageElement.getAttribute("data-src"),
+    imageElement.getAttribute("data-lazy"),
+    imageElement.getAttribute("data-original"),
+    imageElement.getAttribute("data-default"),
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeImageUrl(candidate);
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  return null;
+}
+
+function normalizeImageUrl(value) {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed || /icon-no-picture|placeholder/i.test(trimmed)) {
+    return null;
+  }
+
+  if (trimmed.startsWith("//")) {
+    return `https:${trimmed}`;
+  }
+
+  if (trimmed.startsWith("/")) {
+    return new URL(trimmed, location.origin).toString();
+  }
+
+  return /^https?:\/\//i.test(trimmed) ? trimmed : null;
 }
 
 if (isMyCartPage()) {

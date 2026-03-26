@@ -20,7 +20,7 @@ export default function DashboardLayout() {
     { name: 'Profile', path: '/profile', icon: User },
     // { name: 'My Meals', path: '/meals', icon: Heart },
     { name: 'Recipes', path: '/recipes', icon: BookOpen },
-    { name: 'Shopping List', path: '/shopping', icon: ShoppingCart },
+    { name: 'Fridge', path: '/shopping', icon: ShoppingCart },
     { name: 'Calendar', path: '/calendar', icon: CalendarDays },
   ]
 

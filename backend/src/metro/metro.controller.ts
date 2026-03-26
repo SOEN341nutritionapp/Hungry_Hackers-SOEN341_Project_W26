@@ -1,11 +1,19 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req } from '@nestjs/common';
+import type { Request } from 'express';
+import { MetroService } from './metro.service';
+import { SyncMetroDto } from './dto/sync-metro.dto';
 
 @Controller('metro')
 export class MetroController {
+  constructor(private readonly metroService: MetroService) {}
+
   @Post('sync')
-  sync(@Body() body: any) {
-    const items = Array.isArray(body?.items) ? body.items : [];
-    console.log('[METRO SYNC] received', { count: items.length, sample: items.slice(0, 3) });
-    return { ok: true, count: items.length, receivedSample: items.slice(0, 3) };
+  async sync(@Req() req: Request, @Body() body: SyncMetroDto) {
+    return this.metroService.syncFridgeItems(req.headers.authorization, body.items);
+  }
+
+  @Get('fridge')
+  async getFridge(@Req() req: Request) {
+    return this.metroService.getFridgeItems(req.headers.authorization);
   }
 }

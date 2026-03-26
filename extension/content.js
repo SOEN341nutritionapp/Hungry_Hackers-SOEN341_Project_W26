@@ -1,11 +1,7 @@
-console.log("[Metro→Fridge] content script running on", location.href);
+console.log("[Metro->Fridge] content script running on", location.href);
 
-const TAG = "[Metro→Fridge]";
+const TAG = "[Metro->Fridge]";
 const BTN_ID = "metro-fridge-sync-btn";
-
-// ============================================================================
-// MAIN ENTRY POINT
-// ============================================================================
 
 function isMyCartPage() {
   return location.pathname.toLowerCase().includes("/my-cart");
@@ -14,13 +10,12 @@ function isMyCartPage() {
 function injectButton() {
   if (document.getElementById(BTN_ID)) return;
 
-  const btn = document.createElement("button");
-  btn.id = BTN_ID;
-  btn.type = "button";
-  btn.textContent = "SYNC TO FRIDGE";
+  const button = document.createElement("button");
+  button.id = BTN_ID;
+  button.type = "button";
+  button.textContent = "SYNC TO FRIDGE";
 
-  // Styling
-  Object.assign(btn.style, {
+  Object.assign(button.style, {
     position: "fixed",
     top: "18px",
     right: "18px",
@@ -34,42 +29,65 @@ function injectButton() {
     letterSpacing: "0.5px",
     background: "#00FF7F",
     color: "#000",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.35)"
+    boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
   });
 
-  btn.addEventListener("click", handleSyncClick);
-  document.body.appendChild(btn);
+  button.addEventListener("click", handleSyncClick);
+  document.body.appendChild(button);
   console.log(`${TAG} Button injected`);
 }
 
-function handleSyncClick() {
+function sendRuntimeMessage(message) {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(message, (response) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+
+      resolve(response);
+    });
+  });
+}
+
+async function handleSyncClick(event) {
+  const button = event.currentTarget;
+
   try {
+    button.disabled = true;
+    button.textContent = "SYNCING...";
+
     const items = scrapeCart();
     window.__metroFridgeLastScrape = items;
 
     console.log(`${TAG} Scraped ${items.length} items`);
     console.table(items);
-    
-    alert(`✅ Scraped ${items.length} items\nCheck console for details`);
+
+    const result = await sendRuntimeMessage({ type: "SYNC_METRO_ITEMS", items });
+
+    if (!result?.ok) {
+      throw new Error(result?.error || "Sync failed");
+    }
+
+    alert(`Synced ${result.count} items to your MealMajor fridge.`);
   } catch (error) {
-    console.error(`${TAG} Error during scraping:`, error);
-    alert(`❌ Error scraping cart: ${error.message}`);
+    console.error(`${TAG} Error during sync:`, error);
+    alert(`Error syncing cart: ${error.message}`);
+  } finally {
+    button.disabled = false;
+    button.textContent = "SYNC TO FRIDGE";
   }
 }
 
-// ============================================================================
-// CART SCRAPER
-// ============================================================================
-
 function scrapeCart() {
-  const basketContainer = document.querySelector('.basket-product-tiles');
-  
+  const basketContainer = document.querySelector(".basket-product-tiles");
+
   if (!basketContainer) {
     throw new Error("Cart container (.basket-product-tiles) not found");
   }
 
-  const productElements = basketContainer.querySelectorAll('[data-product-name]');
-  
+  const productElements = basketContainer.querySelectorAll("[data-product-name]");
+
   if (productElements.length === 0) {
     console.warn(`${TAG} No products found in cart`);
     return [];
@@ -80,35 +98,28 @@ function scrapeCart() {
   const items = [];
   const seen = new Set();
 
-  for (const el of productElements) {
+  for (const element of productElements) {
     try {
-      const item = extractProductData(el);
-      
+      const item = extractProductData(element);
+
       if (!item) continue;
 
-      // Skip duplicates
       const key = item.name.toLowerCase();
       if (seen.has(key)) {
         console.log(`${TAG} Skipping duplicate: ${item.name}`);
         continue;
       }
-      seen.add(key);
 
+      seen.add(key);
       items.push(item);
-      console.log(`${TAG} ✓ ${item.name} (qty: ${item.quantity})`, item);
-      
+      console.log(`${TAG} Added ${item.name} (qty: ${item.quantity})`, item);
     } catch (error) {
       console.error(`${TAG} Error extracting product:`, error);
-      // Continue processing other products
     }
   }
 
   return items;
 }
-
-// ============================================================================
-// DATA EXTRACTION
-// ============================================================================
 
 function extractProductData(element) {
   const name = extractProductName(element);
@@ -123,27 +134,27 @@ function extractProductData(element) {
   return {
     name,
     quantity,
-    ...unitDetails
+    ...unitDetails,
   };
 }
 
 function extractProductName(element) {
-  const name = element.getAttribute('data-product-name');
+  const name = element.getAttribute("data-product-name");
   return name && name.length >= 2 ? name.trim() : null;
 }
 
 function extractQuantity(element) {
-  const qtyAttr = element.getAttribute('data-qty');
-  
-  if (!qtyAttr) {
+  const quantityAttribute = element.getAttribute("data-qty");
+
+  if (!quantityAttribute) {
     console.warn(`${TAG} Missing data-qty attribute, defaulting to 1`);
     return 1;
   }
 
-  const quantity = parseInt(qtyAttr, 10);
-  
+  const quantity = parseInt(quantityAttribute, 10);
+
   if (!Number.isFinite(quantity) || quantity < 1) {
-    console.warn(`${TAG} Invalid quantity value: ${qtyAttr}, defaulting to 1`);
+    console.warn(`${TAG} Invalid quantity value: ${quantityAttribute}, defaulting to 1`);
     return 1;
   }
 
@@ -151,22 +162,22 @@ function extractQuantity(element) {
 }
 
 function extractUnitDetails(element) {
-  const detailsEl = element.querySelector(".head__unit-details");
-  
-  if (!detailsEl) {
+  const detailsElement = element.querySelector(".head__unit-details");
+
+  if (!detailsElement) {
     return {};
   }
 
-  const text = detailsEl.textContent.replace(/\s+/g, " ").trim();
-  
+  const text = detailsElement.textContent.replace(/\s+/g, " ").trim();
+
   if (!text) {
     return {};
   }
 
-  const unitFactor = extractUnitFactor(detailsEl, text);
+  const unitFactor = extractUnitFactor(detailsElement, text);
   const unit = extractUnit(text);
-
   const result = {};
+
   if (unitFactor) result.unitFactor = unitFactor;
   if (unit) result.unit = unit;
 
@@ -174,19 +185,17 @@ function extractUnitDetails(element) {
 }
 
 function extractUnitFactor(detailsElement, text) {
-  // Try to find .unit-factor child element first
-  const unitFactorEl = detailsElement.querySelector(".unit-factor");
-  
-  if (unitFactorEl) {
-    const value = parseInt(unitFactorEl.textContent.trim(), 10);
+  const unitFactorElement = detailsElement.querySelector(".unit-factor");
+
+  if (unitFactorElement) {
+    const value = parseInt(unitFactorElement.textContent.trim(), 10);
     if (Number.isFinite(value) && value > 0) {
       return value;
     }
   }
 
-  // Fallback: parse directly from text (e.g., "400 g")
   const match = text.match(/(\d+)\s*(?:g|kg|ml|l|lb|oz)/i);
-  
+
   if (match) {
     const value = parseInt(match[1], 10);
     if (Number.isFinite(value) && value > 0) {
@@ -202,29 +211,16 @@ function extractUnit(text) {
   return match ? match[1].toLowerCase() : null;
 }
 
-// ============================================================================
-// INITIALIZATION
-// ============================================================================
-
 if (isMyCartPage()) {
   injectButton();
-  
-  // Keep button alive in SPA
+
   const observer = new MutationObserver(() => injectButton());
-  observer.observe(document.documentElement, { 
-    childList: true, 
-    subtree: true 
+  observer.observe(document.documentElement, {
+    childList: true,
+    subtree: true,
   });
-  
+
   console.log(`${TAG} Initialized on cart page`);
 } else {
   console.log(`${TAG} Not on cart page, skipping initialization`);
 }
-fetch("http://localhost:3000/metro/sync", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ items })
-})
-  .then(r => r.json())
-  .then(data => console.log("[SYNC RESULT]", data))
-  .catch(err => console.error("[SYNC ERROR]", err));

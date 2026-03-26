@@ -12,7 +12,7 @@
 | Mouawad | Dev 2 | UI Styling + Documentation (Front) | 16 hrs |
 | Nigel | Dev 3 | Recipes CRUD (Front + Back) | 22 hrs |
 | Ishika | Dev 4 | Recipe Filters (Front + Back) | 18 hrs |
-| Taras | Dev 5 | Special Feature | 24 hrs |
+| Taras | Dev 5 | Special Feature + CI Pipeline + Documentation | 24 hrs |
 
 ---
 
@@ -109,4 +109,5 @@
 **Type of work**
 - Product definition
 - Planning & documentation
+
 

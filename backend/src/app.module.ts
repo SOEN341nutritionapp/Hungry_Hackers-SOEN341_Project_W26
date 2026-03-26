@@ -11,5 +11,12 @@ import { MetroModule } from './metro/metro.module';
   imports: [UsersModule, PrismaModule, AuthModule, RecipesModule, MetroModule],
   controllers: [AppController],
   providers: [AppService],
+import { MealPlansModule } from './meal-plans/meal-plans.module';
+import { MetroController } from './metro/metro.controller';
+
+@Module({
+  imports: [UsersModule, PrismaModule, AuthModule, RecipesModule, MealPlansModule],
+  controllers: [MetroController, AppController],
+  providers: [AppService, PrismaService],
 })
 export class AppModule {}

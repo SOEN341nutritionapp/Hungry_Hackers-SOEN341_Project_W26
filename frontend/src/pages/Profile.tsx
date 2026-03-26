@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../AuthContext'
 import * as auth from '../authClient'
+import { getFridge } from '../fridgeClient'
 
 interface UserProfile {
   name: string
@@ -15,17 +16,26 @@ interface UserProfile {
 
 export default function Profile() {
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, accessToken } = useAuth()
   
   const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [fridgeCount, setFridgeCount] = useState(0)
+  const [lastSync, setLastSync] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    auth.getProfile()
-      .then((data) => setProfile(data))
-      .catch((err) => console.error("Failed to load profile:", err))
+    Promise.all([
+      auth.getProfile(),
+      accessToken ? getFridge(accessToken) : Promise.resolve(null),
+    ])
+      .then(([profileData, fridgeData]) => {
+        setProfile(profileData)
+        setFridgeCount(fridgeData?.count ?? 0)
+        setLastSync(fridgeData?.syncedAt ?? null)
+      })
+      .catch((err) => console.error('Failed to load profile:', err))
       .finally(() => setLoading(false))
-  }, [])
+  }, [accessToken])
 
   if (loading) {
     return (
@@ -91,6 +101,27 @@ export default function Profile() {
               <div className="bg-base-200/30 p-3 rounded-lg border border-base-300">
                 <p className="text-xs opacity-60 font-medium">Email Address</p>
                 <p className="text-base font-semibold">{displayEmail}</p>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <h3 className="text-lg font-semibold mb-3">Fridge Sync</h3>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="bg-base-200/30 p-3 rounded-lg border border-base-300">
+                <p className="text-xs opacity-60 font-medium">Saved Items</p>
+                <p className="text-base font-semibold">{fridgeCount}</p>
+              </div>
+              <div className="bg-base-200/30 p-3 rounded-lg border border-base-300">
+                <p className="text-xs opacity-60 font-medium">Last Sync</p>
+                <p className="text-base font-semibold">
+                  {lastSync
+                    ? new Intl.DateTimeFormat(undefined, {
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                      }).format(new Date(lastSync))
+                    : 'Not synced yet'}
+                </p>
               </div>
             </div>
           </section>

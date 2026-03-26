@@ -28,6 +28,7 @@ model User {
   updatedAt          DateTime  @updatedAt
 
   recipes           Recipe[]
+  fridgeItems       FridgeItem[]
   mealPlans         MealPlan[]
   extensionSessions ExtensionSession[]
 }
@@ -74,6 +75,26 @@ model ExtensionSession {
   @@index([userId])
 }
 
+model FridgeItem {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rawName        String
+  name           String
+  normalizedName String
+  quantity       Int
+  unit           String?
+  unitFactor     Int?
+  sizeLabel      String?
+  imageUrl       String?
+  source         String   @default("metro")
+  syncedAt       DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, normalizedName])
+}
 model MealPlan {
   id                 String  @id @default(uuid())
   userId             String

@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../AuthContext'
-import { getFridge, type FridgeItem, type FridgeResponse } from '../fridgeClient'
+import { Minus, Trash2 } from 'lucide-react'
+import {
+  deleteFridgeItem,
+  getFridge,
+  updateFridgeItem,
+  type FridgeItem,
+  type FridgeResponse,
+} from '../fridgeClient'
 
 const SHELF_LABELS = ['Upper Shelf', 'Fresh Shelf', 'Dinner Shelf', 'Door Rack']
 
@@ -63,6 +70,8 @@ export default function Shopping() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [brokenImages, setBrokenImages] = useState<Record<string, boolean>>({})
+  const [pendingItemIds, setPendingItemIds] = useState<Record<string, boolean>>({})
+  const [draftAmounts, setDraftAmounts] = useState<Record<string, string>>({})
 
   const loadFridge = async () => {
     if (!accessToken) {
@@ -78,6 +87,11 @@ export default function Shopping() {
       const data = await getFridge(accessToken)
       setFridge(data)
       setBrokenImages({})
+      setDraftAmounts(
+        Object.fromEntries(
+          data.items.map((item) => [item.id, String(Number(item.availableAmount.toFixed(3)))]),
+        ),
+      )
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load fridge items')
     } finally {
@@ -88,6 +102,65 @@ export default function Shopping() {
   useEffect(() => {
     loadFridge()
   }, [accessToken])
+
+  const handleUseOne = async (itemId: string) => {
+    if (!accessToken) {
+      return
+    }
+
+    setPendingItemIds((current) => ({ ...current, [itemId]: true }))
+
+    try {
+      await updateFridgeItem(itemId, { quantityDelta: -1 }, accessToken)
+      await loadFridge()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to update fridge item')
+    } finally {
+      setPendingItemIds((current) => ({ ...current, [itemId]: false }))
+    }
+  }
+
+  const handleAmountSave = async (item: FridgeItem) => {
+    if (!accessToken) {
+      return
+    }
+
+    const draft = draftAmounts[item.id]
+    const parsed = Number.parseFloat(draft)
+
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      alert('Enter a valid amount')
+      return
+    }
+
+    setPendingItemIds((current) => ({ ...current, [item.id]: true }))
+
+    try {
+      await updateFridgeItem(item.id, { availableAmount: parsed }, accessToken)
+      await loadFridge()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to update fridge item')
+    } finally {
+      setPendingItemIds((current) => ({ ...current, [item.id]: false }))
+    }
+  }
+
+  const handleRemoveItem = async (itemId: string) => {
+    if (!accessToken) {
+      return
+    }
+
+    setPendingItemIds((current) => ({ ...current, [itemId]: true }))
+
+    try {
+      await deleteFridgeItem(itemId, accessToken)
+      await loadFridge()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to remove fridge item')
+    } finally {
+      setPendingItemIds((current) => ({ ...current, [itemId]: false }))
+    }
+  }
 
   const shelves = chunkIntoShelves(fridge?.items ?? [], 3)
 
@@ -211,6 +284,11 @@ export default function Shopping() {
                               <p className="mt-1 text-sm font-medium text-[#166534]/70">
                                 {formatItemSize(item)}
                               </p>
+                              {item.availableLabel && (
+                                <p className="mt-1 text-sm font-semibold text-[#166534]">
+                                  Remaining: {item.availableLabel}
+                                </p>
+                              )}
                             </div>
                             <div className="rounded-full bg-[linear-gradient(135deg,#22c55e_0%,#16a34a_100%)] px-3 py-2 text-sm font-black text-white shadow-[0_10px_20px_rgba(34,197,94,0.24)]">
                               x{item.quantity}
@@ -220,6 +298,56 @@ export default function Shopping() {
                           <p className="mt-3 text-sm text-[#166534]/75">
                             {item.name} &middot; {formatItemSize(item)} &middot; x{item.quantity}
                           </p>
+
+                          {item.unit && (
+                            <div className="mt-4 flex flex-wrap items-center gap-2">
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={draftAmounts[item.id] ?? ''}
+                                onChange={(e) =>
+                                  setDraftAmounts((current) => ({
+                                    ...current,
+                                    [item.id]: e.target.value,
+                                  }))
+                                }
+                                className="input input-bordered input-sm w-32"
+                              />
+                              <span className="text-sm font-semibold text-[#166534]/80">
+                                {item.unit}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleAmountSave(item)}
+                                disabled={pendingItemIds[item.id]}
+                                className="btn btn-sm rounded-full border-none bg-[#dbeafe] text-[#1d4ed8] hover:bg-[#bfdbfe]"
+                              >
+                                Save Amount
+                              </button>
+                            </div>
+                          )}
+
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleUseOne(item.id)}
+                              disabled={pendingItemIds[item.id]}
+                              className="btn btn-sm rounded-full border-none bg-[#dcfce7] text-[#166534] hover:bg-[#bbf7d0]"
+                            >
+                              <Minus className="h-4 w-4" />
+                              Use One
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveItem(item.id)}
+                              disabled={pendingItemIds[item.id]}
+                              className="btn btn-sm rounded-full border-none bg-[#fee2e2] text-[#991b1b] hover:bg-[#fecaca]"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Remove
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </article>

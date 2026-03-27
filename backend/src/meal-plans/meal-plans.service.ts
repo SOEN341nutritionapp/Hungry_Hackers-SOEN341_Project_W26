@@ -1,119 +1,260 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { CreateMealPlanDto } from './dto/create-meal-plan.dto';
+import { Injectable, NotFoundException, ConflictException, Logger } from '@nestjs/common'
+import { Prisma } from '@prisma/client'
+import { PrismaService } from '../prisma/prisma.service'
+import { CreateMealPlanDto } from './dto/create-meal-plan.dto'
+import { inventoryNamesMatch, normalizeInventoryName, parseIngredientAmount } from '../inventory/inventory-utils'
+
+type RecipeIngredient = {
+  name?: string
+  amount?: string
+  unit?: string
+}
 
 @Injectable()
 export class MealPlansService {
-    // inject prosmaservice so we can access the database
+    private readonly logger = new Logger(MealPlansService.name)
+
     constructor(private prisma: PrismaService) {}
 
-    // helper function: calculate the Monday of any given week, 
-    // since we store weekStart (the Monday) to make queerying easier
-    // so if ua user gives us wednesdat march 5, we calculate Monnday March 3
-private getWeekStart(date: Date): Date {
-  const d = new Date(date);
-  const day = d.getUTCDay();  // ← Use getUTCDay() not getDay()
-  
-  // Calculate days to subtract to get to Monday
-  const daysToSubtract = day === 0 ? 6 : day - 1;
-  
-  // Create new date for Monday
-  const monday = new Date(Date.UTC(
-    d.getUTCFullYear(),
-    d.getUTCMonth(),
-    d.getUTCDate() - daysToSubtract,
-    0, 0, 0, 0
-  ));
-    
-  return monday;
-}
-    // ============= GET: Fetch all meals for a specific task =================
-    // Called by: Get /meal-plans/:userId/:weekStart
-    // example: findByWeek("user-123", "2026-03-03")
-    // returns: all meal plans for that week with the full recipe details
-    async findByWeek(userId: string, weekStart: string){
-        // Parse as UTC midnight to match what's in database
-        const [year, month, day] = weekStart.split('-').map(Number);
-        const weekStartDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
-        
-        return this.prisma.mealPlan.findMany({
-            where: {
-                userId,                             
-                weekStart: weekStartDate,  // ← Use parsed UTC date
-            },
-            include: {
-                recipe: true
-            },
-            orderBy: {
-                date: 'asc',
-            },
-        });
+    private getWeekStart(date: Date): Date {
+        const d = new Date(date)
+        const day = d.getUTCDay()
+        const daysToSubtract = day === 0 ? 6 : day - 1
+
+        return new Date(Date.UTC(
+            d.getUTCFullYear(),
+            d.getUTCMonth(),
+            d.getUTCDate() - daysToSubtract,
+            0, 0, 0, 0,
+        ))
     }
 
-    // ============= POST: Create a new meal plan =============================
-    // Called bu: POST /meal-plans/:userId
-    /* workflow:
-        1. takes the recipe ID, date, and meal type from the request
-        2. Calculates which Monday that date belongs to (weekStart)
-        3. Creates a new entry in the MealPlan table
-        4. Returns the created meal plan 
-    */
-    async create(userId: string, CreateMealPlanDto: CreateMealPlanDto) {
-        const { recipeId, date, mealType } = CreateMealPlanDto;
+    async findByWeek(userId: string, weekStart: string) {
+        const [year, month, day] = weekStart.split('-').map(Number)
+        const weekStartDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0))
 
-        // Parse date as UTC
-        const [year, month, day] = date.split('-').map(Number);
-        const mealDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
-                
-        const weekStart = this.getWeekStart(mealDate);
-        
-        // ========== CHECK FOR DUPLICATE ==========
-        const existingMealInWeek = await this.prisma.mealPlan.findFirst({
-            where: {
-            userId,
-            recipeId,
-            weekStart,
-            },
-        });
-
-        if (existingMealInWeek) {
-            throw new ConflictException(
-            'This recipe is already planned for this week!'
-            );
+        try {
+            return await this.prisma.mealPlan.findMany({
+                where: {
+                    userId,
+                    weekStart: weekStartDate,
+                },
+                include: {
+                    recipe: true,
+                },
+                orderBy: {
+                    date: 'asc',
+                },
+            })
+        } catch (error) {
+            this.logger.error(
+                `Failed to load meal plans for user ${userId} and week ${weekStart}`,
+                error instanceof Error ? error.stack : String(error),
+            )
+            return []
         }
-        // =========================================
-        return this.prisma.mealPlan.create({
-            data: {
-                userId,
-                recipeId,
-                date: mealDate,
-                mealType,
-                weekStart,
-            },
-            include: {
-                recipe: true,
-            },
-        });
     }
 
+    async create(userId: string, createMealPlanDto: CreateMealPlanDto) {
+        const { recipeId, date, mealType } = createMealPlanDto
+        const [year, month, day] = date.split('-').map(Number)
+        const mealDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0))
+        const weekStart = this.getWeekStart(mealDate)
 
-     // =========== DELETE: Remove a meal plan ================================
-     // called by: Delete /meal-plans/:userId/:id
+        return this.prisma.$transaction(async (tx) => {
+            const recipe = await tx.recipe.findUnique({
+                where: { id: recipeId },
+            })
+
+            if (!recipe || recipe.userId !== userId) {
+                throw new NotFoundException('Recipe not found')
+            }
+
+            const existingMealInWeek = await tx.mealPlan.findFirst({
+                where: {
+                    userId,
+                    recipeId,
+                    weekStart,
+                },
+            })
+
+            if (existingMealInWeek) {
+                throw new ConflictException('This recipe is already planned for this week!')
+            }
+
+            const mealPlan = await tx.mealPlan.create({
+                data: {
+                    userId,
+                    recipeId,
+                    date: mealDate,
+                    mealType,
+                    weekStart,
+                },
+                include: {
+                    recipe: true,
+                },
+            })
+
+            await this.consumeRecipeIngredients(tx, userId, mealPlan.id, recipe.ingredients as RecipeIngredient[])
+
+            return mealPlan
+        })
+    }
+
     async remove(userId: string, id: string) {
-        const mealPlan = await this.prisma.mealPlan.findUnique({
-            where: { id }, // find by meal plan id
-        });
+        return this.prisma.$transaction(async (tx) => {
+            const mealPlan = await tx.mealPlan.findUnique({
+                where: { id },
+                include: {
+                    consumptions: true,
+                },
+            })
 
-        if(!mealPlan) {
-            throw new NotFoundException('Meal Plan Not Found');
+            if (!mealPlan || mealPlan.userId !== userId) {
+                throw new NotFoundException('Meal Plan Not Found')
+            }
+
+            for (const consumption of mealPlan.consumptions) {
+                if (!consumption.fridgeItemId) {
+                    continue
+                }
+
+                const fridgeItem = await tx.fridgeItem.findUnique({
+                    where: { id: consumption.fridgeItemId },
+                })
+
+                if (!fridgeItem) {
+                    continue
+                }
+
+                const restoredAvailableAmount = this.roundAmount(
+                    fridgeItem.availableAmount + consumption.amountConsumed,
+                )
+
+                await tx.fridgeItem.update({
+                    where: { id: fridgeItem.id },
+                    data: {
+                        availableAmount: restoredAvailableAmount,
+                        quantity: this.deriveVisibleQuantity(restoredAvailableAmount, fridgeItem.unitFactor),
+                    },
+                })
+            }
+
+            return tx.mealPlan.delete({
+                where: { id },
+            })
+        })
+    }
+
+    private async consumeRecipeIngredients(
+        tx: Prisma.TransactionClient,
+        userId: string,
+        mealPlanId: string,
+        ingredients: RecipeIngredient[],
+    ) {
+        if (!Array.isArray(ingredients) || ingredients.length === 0) {
+            return
         }
 
-        if (mealPlan.userId !== userId) {
-            throw new NotFoundException('Meal Plan Not Found');
+        const fridgeItems = await tx.fridgeItem.findMany({
+            where: {
+                userId,
+                availableAmount: {
+                    gt: 0,
+                },
+            },
+            orderBy: [{ syncedAt: 'asc' }, { createdAt: 'asc' }],
+        })
+
+        const inventory = fridgeItems.map((item) => ({
+            ...item,
+            inventoryKey: normalizeInventoryName(item.name),
+        }))
+
+        const consumptionRows: Array<{
+            mealPlanId: string
+            fridgeItemId: string
+            ingredientName: string
+            amountConsumed: number
+            unit: string
+        }> = []
+
+        for (const ingredient of ingredients) {
+            const ingredientName = ingredient?.name?.trim()
+            const ingredientAmount = ingredient?.amount?.trim()
+            const ingredientUnit = ingredient?.unit?.trim()
+
+            if (!ingredientName || !ingredientAmount || !ingredientUnit) {
+                continue
+            }
+
+            const normalizedIngredient = normalizeInventoryName(ingredientName)
+            const requestedAmount = parseIngredientAmount(ingredientAmount, ingredientUnit)
+
+            if (!requestedAmount) {
+                continue
+            }
+
+            let remaining = requestedAmount.value
+
+            for (const item of inventory) {
+                if (remaining <= 0) {
+                    break
+                }
+
+                if (!inventoryNamesMatch(item.inventoryKey, normalizedIngredient) || item.unit !== requestedAmount.unit) {
+                    continue
+                }
+
+                if (item.availableAmount <= 0) {
+                    continue
+                }
+
+                const amountConsumed = Math.min(item.availableAmount, remaining)
+                item.availableAmount = this.roundAmount(item.availableAmount - amountConsumed)
+                remaining = this.roundAmount(remaining - amountConsumed)
+
+                consumptionRows.push({
+                    mealPlanId,
+                    fridgeItemId: item.id,
+                    ingredientName,
+                    amountConsumed: this.roundAmount(amountConsumed),
+                    unit: requestedAmount.unit,
+                })
+            }
         }
 
-        return this.prisma.mealPlan.delete({
-            where: { id },
-        });
+        if (consumptionRows.length === 0) {
+            return
+        }
+
+        const updates = inventory.filter((item, index) => item.availableAmount !== fridgeItems[index].availableAmount)
+
+        for (const item of updates) {
+            await tx.fridgeItem.update({
+                where: { id: item.id },
+                data: {
+                    availableAmount: item.availableAmount,
+                    quantity: this.deriveVisibleQuantity(item.availableAmount, item.unitFactor),
+                },
+            })
+        }
+
+        await tx.mealPlanConsumption.createMany({
+            data: consumptionRows,
+        })
+    }
+
+    private deriveVisibleQuantity(availableAmount: number, unitFactor?: number | null) {
+        if (availableAmount <= 0) {
+            return 0
+        }
+
+        const packageAmount = unitFactor && unitFactor > 0 ? unitFactor : 1
+        return Math.max(1, Math.ceil(availableAmount / packageAmount))
+    }
+
+    private roundAmount(value: number) {
+        return Number(value.toFixed(3))
     }
 }

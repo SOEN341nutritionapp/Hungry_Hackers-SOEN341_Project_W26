@@ -9,6 +9,7 @@ interface RecipeCardProps {
 }
 
 export default function RecipeCard({ recipe }: RecipeCardProps) {
+    const recipeTitle = recipe?.title || 'Untitled Recipe'
     
     //Function when user starts to drag recipe card
     const handleDragStart = (e: React.DragEvent) => {
@@ -27,14 +28,14 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
             <div className="h-14 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-slate-100">
                 <img 
                     src={recipe.imageUrl || 'https://via.placeholder.com/150'} 
-                    alt={recipe.title}
+                    alt={recipeTitle}
                     className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-500" 
                 />
             </div>
 
             <div className="flex-1 min-w-0">
                 <h3 className="text-sm font-bold text-slate-700 truncate leading-tight group-hover:text-emerald-600 transition-colors">
-                    {recipe.title}
+                    {recipeTitle}
                 </h3>
                 
                 <div className="flex items-center gap-2 mt-1">

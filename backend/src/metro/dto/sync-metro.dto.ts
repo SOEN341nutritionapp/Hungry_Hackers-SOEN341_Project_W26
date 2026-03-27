@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsInt, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
+import { IsArray, IsInt, IsNumber, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
 
 export class SyncMetroItemDto {
   @IsString()
@@ -16,8 +16,8 @@ export class SyncMetroItemDto {
 
   @IsOptional()
   @Type(() => Number)
-  @IsInt()
-  @Min(1)
+  @IsNumber()
+  @Min(0.01)
   unitFactor?: number;
 
   @IsOptional()

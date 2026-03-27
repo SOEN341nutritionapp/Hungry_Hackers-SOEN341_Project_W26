@@ -14,12 +14,15 @@ export default function RecipeSidebar({ userId }: RecipeSidebarProps) {
     useEffect(() => {
         if (userId) {
             apiGet<any[]>(`/recipes/${userId}`)
-                .then((data) => setRecipes(data))
+                .then((data) => setRecipes(Array.isArray(data) ? data.filter(Boolean) : []))
                 .catch((err) => console.error("Error fetching recipes:", err));
+        } else {
+            setRecipes([])
         }
     }, [userId]);
+
     const filteredRecipes = recipes.filter((recipe) =>
-    recipe.title.toLowerCase().includes(searchTerm.toLowerCase())
+        String(recipe?.title ?? '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     return (

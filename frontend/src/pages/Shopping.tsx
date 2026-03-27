@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../AuthContext'
-import { getFridge, type FridgeItem, type FridgeResponse } from '../fridgeClient'
+import { Minus, Trash2 } from 'lucide-react'
+import {
+  deleteFridgeItem,
+  getFridge,
+  updateFridgeItem,
+  type FridgeItem,
+  type FridgeResponse,
+} from '../fridgeClient'
 
 const SHELF_LABELS = ['Upper Shelf', 'Fresh Shelf', 'Dinner Shelf', 'Door Rack']
 
@@ -47,6 +54,29 @@ function formatUnitForDisplay(unit: string) {
   }
 }
 
+function getRemainingUnit(item: FridgeItem) {
+  const unit = item.unit?.toLowerCase()
+
+  if (unit === 'kg' || unit === 'lb' || unit === 'oz') {
+    return 'g'
+  }
+
+  if (unit === 'l' || unit === 'cup' || unit === 'tbsp' || unit === 'tsp') {
+    return 'mL'
+  }
+
+  return formatUnitForDisplay(unit ?? 'ea')
+}
+
+function formatAmountInputValue(value?: number) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return ''
+  }
+
+  const rounded = Math.round(value * 100) / 100
+  return Number.isInteger(rounded) ? String(rounded) : String(rounded)
+}
+
 function chunkIntoShelves(items: FridgeItem[], size: number) {
   const shelves: FridgeItem[][] = []
 
@@ -63,6 +93,8 @@ export default function Shopping() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [brokenImages, setBrokenImages] = useState<Record<string, boolean>>({})
+  const [pendingItemIds, setPendingItemIds] = useState<Record<string, boolean>>({})
+  const [amountDrafts, setAmountDrafts] = useState<Record<string, string>>({})
 
   const loadFridge = async () => {
     if (!accessToken) {
@@ -88,6 +120,78 @@ export default function Shopping() {
   useEffect(() => {
     loadFridge()
   }, [accessToken])
+
+  useEffect(() => {
+    if (!fridge) {
+      setAmountDrafts({})
+      return
+    }
+
+    setAmountDrafts(
+      Object.fromEntries(
+        fridge.items.map((item) => [item.id, formatAmountInputValue(item.availableAmount)]),
+      ),
+    )
+  }, [fridge])
+
+  const handleUseOne = async (itemId: string) => {
+    if (!accessToken) {
+      return
+    }
+
+    setPendingItemIds((current) => ({ ...current, [itemId]: true }))
+
+    try {
+      await updateFridgeItem(itemId, { quantityDelta: -1 }, accessToken)
+      await loadFridge()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to update fridge item')
+    } finally {
+      setPendingItemIds((current) => ({ ...current, [itemId]: false }))
+    }
+  }
+
+  const handleRemoveItem = async (itemId: string) => {
+    if (!accessToken) {
+      return
+    }
+
+    setPendingItemIds((current) => ({ ...current, [itemId]: true }))
+
+    try {
+      await deleteFridgeItem(itemId, accessToken)
+      await loadFridge()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to remove fridge item')
+    } finally {
+      setPendingItemIds((current) => ({ ...current, [itemId]: false }))
+    }
+  }
+
+  const handleSaveAmount = async (item: FridgeItem) => {
+    if (!accessToken) {
+      return
+    }
+
+    const rawValue = amountDrafts[item.id]
+    const nextAmount = Number(rawValue)
+
+    if (!rawValue || Number.isNaN(nextAmount) || nextAmount < 0) {
+      alert('Enter a valid remaining amount')
+      return
+    }
+
+    setPendingItemIds((current) => ({ ...current, [item.id]: true }))
+
+    try {
+      await updateFridgeItem(item.id, { availableAmount: nextAmount }, accessToken)
+      await loadFridge()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to save fridge amount')
+    } finally {
+      setPendingItemIds((current) => ({ ...current, [item.id]: false }))
+    }
+  }
 
   const shelves = chunkIntoShelves(fridge?.items ?? [], 3)
 
@@ -211,6 +315,11 @@ export default function Shopping() {
                               <p className="mt-1 text-sm font-medium text-[#166534]/70">
                                 {formatItemSize(item)}
                               </p>
+                              {item.availableLabel && (
+                                <p className="mt-1 text-sm font-semibold text-[#166534]">
+                                  Remaining: {item.availableLabel}
+                                </p>
+                              )}
                             </div>
                             <div className="rounded-full bg-[linear-gradient(135deg,#22c55e_0%,#16a34a_100%)] px-3 py-2 text-sm font-black text-white shadow-[0_10px_20px_rgba(34,197,94,0.24)]">
                               x{item.quantity}
@@ -220,6 +329,59 @@ export default function Shopping() {
                           <p className="mt-3 text-sm text-[#166534]/75">
                             {item.name} &middot; {formatItemSize(item)} &middot; x{item.quantity}
                           </p>
+
+                          <div className="mt-4 flex flex-wrap items-end gap-2">
+                            <label className="flex flex-col gap-1">
+                              <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[#166534]/70">
+                                Remaining
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step={getRemainingUnit(item) === 'ea' ? '1' : '0.01'}
+                                  value={amountDrafts[item.id] ?? ''}
+                                  onChange={(event) =>
+                                    setAmountDrafts((current) => ({
+                                      ...current,
+                                      [item.id]: event.target.value,
+                                    }))
+                                  }
+                                  disabled={pendingItemIds[item.id]}
+                                  className="input input-sm w-28 rounded-full border-[#cde8d4] bg-white"
+                                />
+                                <span className="text-sm font-semibold text-[#166534]/70">
+                                  {getRemainingUnit(item)}
+                                </span>
+                              </div>
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => handleSaveAmount(item)}
+                              disabled={pendingItemIds[item.id]}
+                              className="btn btn-sm rounded-full border-none bg-[#dcfce7] text-[#166534] hover:bg-[#bbf7d0]"
+                            >
+                              Save Amount
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleUseOne(item.id)}
+                              disabled={pendingItemIds[item.id]}
+                              className="btn btn-sm rounded-full border-none bg-[#dcfce7] text-[#166534] hover:bg-[#bbf7d0]"
+                            >
+                              <Minus className="h-4 w-4" />
+                              Use One
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveItem(item.id)}
+                              disabled={pendingItemIds[item.id]}
+                              className="btn btn-sm rounded-full border-none bg-[#fee2e2] text-[#991b1b] hover:bg-[#fecaca]"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Remove Item
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </article>

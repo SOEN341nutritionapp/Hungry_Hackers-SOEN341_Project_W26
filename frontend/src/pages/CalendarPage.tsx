@@ -3,6 +3,7 @@ import { useAuth } from '../AuthContext'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import CalendarGrid from '../components/CalendarGrid'
 import RecipeSidebar from '../components/RecipeSidebar';
+import { apiGet } from '../api';
 
 /*
     This page displays a weekly meal plammer where users can view and manage
@@ -11,9 +12,8 @@ import RecipeSidebar from '../components/RecipeSidebar';
 
 
 export default function CalendarPage() {
-    const { user } = useAuth()
+    const { user, accessToken } = useAuth()
     const userId = user?.id 
-    const API_URL = import.meta.env.VITE_API_URL
 
     // STATES
     const [currentWeekStart, setCurrentWeekStart] = useState<Date>(getWeekStart(new Date()))
@@ -48,7 +48,7 @@ export default function CalendarPage() {
         if(userId) {
             fetchMeals()
         }
-    }, [userId, currentWeekStart])
+    }, [userId, accessToken, currentWeekStart])
 
     // HELPER FUNCTION: Fetch meals from the backend
     const fetchMeals = async () => {
@@ -59,13 +59,10 @@ export default function CalendarPage() {
             const weekStartString = currentWeekStart.toISOString().split('T')[0]
 
             // call backend to get all the meals for this week 
-            const response = await fetch(`${API_URL}/meal-plans/${userId}/${weekStartString}`)
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch meals')
-            }
-            // parse response and store in state
-            const data = await response.json()
+            const data = await apiGet<any[]>(
+                `/meal-plans/${userId}/${weekStartString}`,
+                accessToken ?? undefined,
+            )
 
             setMeals(data)
         } catch (err){

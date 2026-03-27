@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Plus, X } from 'lucide-react'
 import AddMealModal from './AddMealModal' 
 import { useAuth } from '../AuthContext'
+import { apiDelete, apiPost } from '../api'
 
 
 /* 
@@ -31,9 +32,8 @@ export default function CalendarSlot({
     {
     const navigate = useNavigate()
 
-    const { user } = useAuth()
+    const { user, accessToken } = useAuth()
     const userId = user?.id
-    const API_URL = import.meta.env.VITE_API_URL
     
     // State for AddMealModal
     const [isModalOpen, setIsModalOpen] = useState(false)  
@@ -61,18 +61,22 @@ export default function CalendarSlot({
             return
         }
         try {
-            const response = await fetch(`${API_URL}/meal-plans/${userId}/${existingMeal.id}`, {
-                method: 'DELETE'
-            })
+            const response = await apiDelete<{
+                restoredItems?: Array<{ ingredientName: string; label: string }>
+            }>(`/meal-plans/${userId}/${existingMeal.id}`, accessToken ?? undefined)
 
-            if(!response.ok) {
-                throw new Error('Failed to delete meal')
+            if (response.restoredItems?.length) {
+                alert(
+                    `Restored to fridge: ${response.restoredItems
+                        .map((item) => `${item.ingredientName} (${item.label})`)
+                        .join(', ')}`,
+                )
             }
             onMealDeleted()
 
         } catch (err) {
-            alert('Failed to delete meal')
-            console.error('Error deleting meal')
+            alert(err instanceof Error ? err.message : 'Failed to delete meal')
+            console.error('Error deleting meal', err)
         }
     }
 
@@ -114,25 +118,45 @@ export default function CalendarSlot({
         try {
             const dateString = date.toISOString().split('T')[0]
             //Execute POST: Link the recipe to the specific date and meal category
-            const response = await fetch(`${API_URL}/meal-plans/${userId}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
+            const response = await apiPost<{
+                fridgeUpdates?: Array<{ fridgeItemName: string; label: string }>
+                missingIngredients?: Array<{ ingredientName: string; label: string }>
+            }>(
+                `/meal-plans/${userId}`,
+                {
                     recipeId, // Passing the recipeId string
                     date: dateString,
                     mealType,
-                })
-            })
-    
-            if (!response.ok) {
-                throw new Error('Failed to add meal')
+                },
+                accessToken ?? undefined,
+            )
+
+            const messages: string[] = []
+
+            if (response.fridgeUpdates?.length) {
+                messages.push(
+                    `Fridge updated: ${response.fridgeUpdates
+                        .map((item) => `${item.fridgeItemName} (${item.label})`)
+                        .join(', ')}`,
+                )
+            }
+
+            if (response.missingIngredients?.length) {
+                messages.push(
+                    `Missing from fridge: ${response.missingIngredients
+                        .map((item) => `${item.ingredientName} (${item.label})`)
+                        .join(', ')}`,
+                )
             }
     
             //Refresh the global calendar state to show the new meal immediately
             onMealAdded()
+            if (messages.length > 0) {
+                alert(messages.join('\n'))
+            }
     
         } catch (err) {
-            alert('Failed to add meal from drag-drop')
+            alert(err instanceof Error ? err.message : 'Failed to add meal from drag-drop')
             console.error('Error in handleDrop:', err)
         }
     }

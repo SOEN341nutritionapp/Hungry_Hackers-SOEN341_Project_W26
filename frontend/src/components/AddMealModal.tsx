@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { useAuth } from '../AuthContext'
+import { apiGet, apiPost } from '../api'
 
 interface AddMealModalProps{
     isOpen: boolean             // is model visible
@@ -17,9 +18,8 @@ export default function AddMealModal({
     mealType,
     onMealAdded
 }: AddMealModalProps) {
-    const { user } = useAuth()
+    const { user, accessToken } = useAuth()
     const userId = user?.id
-    const API_URL = import.meta.env.VITE_API_URL
 
     const [recipes, setRecipes] = useState<any[]>([])
     const [loading, setLoading] = useState(false)
@@ -39,13 +39,7 @@ export default function AddMealModal({
             setLoading(true)
             setError(null)
 
-            const response = await fetch(`${API_URL}/recipes/${userId}`)
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch recipes')
-            }
-
-            const data = await response.json()
+            const data = await apiGet<any[]>(`/recipes/${userId}`, accessToken ?? undefined)
             setRecipes(data)
 
         } catch (err) { 
@@ -62,34 +56,45 @@ export default function AddMealModal({
         try {
             const dateString = date.toISOString().split('T')[0]
 
-            const response = await fetch(`${API_URL}/meal-plans/${userId}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
+            const response = await apiPost<{
+                fridgeUpdates?: Array<{ fridgeItemName: string; label: string }>
+                missingIngredients?: Array<{ ingredientName: string; label: string }>
+            }>(
+                `/meal-plans/${userId}`,
+                {
                     recipeId,
                     date: dateString,
                     mealType
-                })
-            })
-            // ========================================================================
-            // Handle duplicate error (409 Conflict)
-            // ========================================================================
-            if (response.status === 409) {
-                 const error = await response.json();
-                 alert(error.message || 'This recipe is already planned for this week.');
-                 return; // Don't close modal, let user pick another recipe
-             }
-            // ========================================================================
+                },
+                accessToken ?? undefined,
+            )
 
-            if (!response.ok) {
-                throw new Error('Failed to add meal')
+            const messages: string[] = []
+
+            if (response.fridgeUpdates?.length) {
+                messages.push(
+                    `Fridge updated: ${response.fridgeUpdates
+                        .map((item) => `${item.fridgeItemName} (${item.label})`)
+                        .join(', ')}`,
+                )
+            }
+
+            if (response.missingIngredients?.length) {
+                messages.push(
+                    `Missing from fridge: ${response.missingIngredients
+                        .map((item) => `${item.ingredientName} (${item.label})`)
+                        .join(', ')}`,
+                )
             }
 
             // close modal and refresh calendar
             onMealAdded()
             onClose()
+            if (messages.length > 0) {
+                alert(messages.join('\n'))
+            }
         } catch (err) {
-            alert('Failed to add meal to calendar')
+            alert(err instanceof Error ? err.message : 'Failed to add meal to calendar')
             console.error('Error adding meal:', err)
         }
     }

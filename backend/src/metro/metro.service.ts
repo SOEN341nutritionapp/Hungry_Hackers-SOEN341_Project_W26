@@ -1,5 +1,7 @@
 import {
+  BadRequestException,
   Injectable,
+  NotFoundException,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -7,7 +9,14 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import { SyncMetroItemDto } from './dto/sync-metro.dto';
+import { UpdateFridgeItemDto } from './dto/update-fridge-item.dto';
 import { normalizeMetroItem } from './fridge-normalizer';
+import {
+  deriveVisibleQuantity,
+  formatAmountLabel,
+  normalizeUnit,
+  toBasePackageAmount,
+} from '../inventory/inventory-utils';
 
 type StoredFridgeItem = {
   rawName: string;
@@ -34,24 +43,68 @@ export class MetroService {
 
     try {
       await this.prisma.$transaction(async (tx) => {
-        await tx.fridgeItem.deleteMany({ where: { userId } });
+        const existingItems = await tx.fridgeItem.findMany({
+          where: {
+            userId,
+            source: 'metro',
+            normalizedName: { in: items.map((item) => item.normalizedName) },
+          },
+        });
 
-        if (items.length > 0) {
-          await tx.fridgeItem.createMany({
-            data: items.map((item) => ({
+        const existingByName = new Map(
+          existingItems.map((item) => [item.normalizedName, item]),
+        );
+
+        for (const item of items) {
+          const existing = existingByName.get(item.normalizedName);
+          const amountPerPackage = this.getAmountPerPackage(item.unitFactor, item.unit);
+          const availableIncrement = amountPerPackage * item.quantity;
+
+          if (existing) {
+            const nextAvailable = existing.availableAmount + availableIncrement;
+            const nextQuantity = deriveVisibleQuantity(
+              nextAvailable,
+              existing.unitFactor ?? item.unitFactor ?? null,
+              existing.quantity + item.quantity,
+            );
+
+            const updated = await tx.fridgeItem.update({
+              where: { id: existing.id },
+              data: {
+                rawName: item.rawName,
+                name: item.name,
+                quantity: nextQuantity,
+                availableAmount: nextAvailable,
+                unit: item.unit ?? existing.unit ?? null,
+                unitFactor: item.unitFactor ?? existing.unitFactor ?? null,
+                sizeLabel: item.sizeLabel ?? existing.sizeLabel ?? null,
+                imageUrl: item.imageUrl ?? existing.imageUrl ?? null,
+                syncedAt,
+              },
+            });
+
+            existingByName.set(item.normalizedName, updated);
+            continue;
+          }
+
+          const created = await tx.fridgeItem.create({
+            data: {
               userId,
               rawName: item.rawName,
               name: item.name,
               normalizedName: item.normalizedName,
               quantity: item.quantity,
+              availableAmount: availableIncrement,
               unit: item.unit ?? null,
               unitFactor: item.unitFactor ?? null,
               sizeLabel: item.sizeLabel ?? null,
               imageUrl: item.imageUrl ?? null,
               source: 'metro',
               syncedAt,
-            })),
+            },
           });
+
+          existingByName.set(item.normalizedName, created);
         }
       });
     } catch (error) {
@@ -73,23 +126,40 @@ export class MetroService {
 
     try {
       items = await this.prisma.fridgeItem.findMany({
-        where: { userId },
-        orderBy: [{ syncedAt: 'desc' }, { name: 'asc' }],
+        where: {
+          userId,
+          availableAmount: { gt: 0 },
+        },
+        orderBy: [{ createdAt: 'asc' }, { name: 'asc' }],
       });
     } catch (error) {
       this.handleSchemaMismatch(error);
       throw error;
     }
 
+    let latestSyncedAt: string | null = null;
+
+    for (const item of items) {
+      const iso = item.syncedAt.toISOString();
+      if (!latestSyncedAt || iso > latestSyncedAt) {
+        latestSyncedAt = iso;
+      }
+    }
+
     return {
       count: items.length,
-      syncedAt: items[0]?.syncedAt.toISOString() ?? null,
+      syncedAt: latestSyncedAt,
       items: items.map((item) => ({
         id: item.id,
         rawName: item.rawName,
         name: item.name,
         quantity: item.quantity,
-        unit: item.unit,
+        availableAmount: item.availableAmount,
+        availableLabel: formatAmountLabel(
+          item.availableAmount,
+          this.getBaseDisplayUnit(item.unit),
+        ),
+        unit: normalizeUnit(item.unit),
         unitFactor: item.unitFactor,
         sizeLabel: item.sizeLabel,
         imageUrl: item.imageUrl,
@@ -97,6 +167,107 @@ export class MetroService {
         syncedAt: item.syncedAt.toISOString(),
       })),
     };
+  }
+
+  async updateFridgeItem(
+    authHeader: string | undefined,
+    id: string,
+    updates: UpdateFridgeItemDto,
+  ) {
+    const userId = this.getUserIdFromHeader(authHeader);
+
+    if (
+      updates.quantityDelta === undefined &&
+      updates.availableAmount === undefined
+    ) {
+      throw new BadRequestException('No fridge update was provided.');
+    }
+
+    if (
+      updates.quantityDelta !== undefined &&
+      updates.availableAmount !== undefined
+    ) {
+      throw new BadRequestException(
+        'Send either quantityDelta or availableAmount, not both.',
+      );
+    }
+
+    const item = await this.prisma.fridgeItem.findFirst({
+      where: { id, userId },
+    });
+
+    if (!item) {
+      throw new NotFoundException('Fridge item not found.');
+    }
+
+    let nextAvailable = item.availableAmount;
+
+    if (updates.availableAmount !== undefined) {
+      nextAvailable = updates.availableAmount;
+    } else if (updates.quantityDelta !== undefined) {
+      const amountPerPackage = this.getAmountPerPackage(item.unitFactor, item.unit);
+      nextAvailable = item.availableAmount + updates.quantityDelta * amountPerPackage;
+    }
+
+    if (!Number.isFinite(nextAvailable)) {
+      throw new BadRequestException('Invalid fridge amount.');
+    }
+
+    if (nextAvailable <= 0) {
+      await this.prisma.fridgeItem.delete({
+        where: { id: item.id },
+      });
+
+      return { ok: true, removed: true };
+    }
+
+    const updated = await this.prisma.fridgeItem.update({
+      where: { id: item.id },
+      data: {
+        availableAmount: nextAvailable,
+        quantity: deriveVisibleQuantity(nextAvailable, item.unitFactor, item.quantity),
+      },
+    });
+
+    return {
+      ok: true,
+      removed: false,
+      item: {
+        id: updated.id,
+        rawName: updated.rawName,
+        name: updated.name,
+        quantity: updated.quantity,
+        availableAmount: updated.availableAmount,
+        availableLabel: formatAmountLabel(
+          updated.availableAmount,
+          this.getBaseDisplayUnit(updated.unit),
+        ),
+        unit: normalizeUnit(updated.unit),
+        unitFactor: updated.unitFactor,
+        sizeLabel: updated.sizeLabel,
+        imageUrl: updated.imageUrl,
+        source: updated.source,
+        syncedAt: updated.syncedAt.toISOString(),
+      },
+    };
+  }
+
+  async deleteFridgeItem(authHeader: string | undefined, id: string) {
+    const userId = this.getUserIdFromHeader(authHeader);
+
+    const item = await this.prisma.fridgeItem.findFirst({
+      where: { id, userId },
+    });
+
+    if (!item) {
+      throw new NotFoundException('Fridge item not found.');
+    }
+
+    await this.prisma.fridgeItem.delete({
+      where: { id: item.id },
+    });
+
+    return { ok: true };
   }
 
   private getUserIdFromHeader(authHeader?: string) {
@@ -151,6 +322,24 @@ export class MetroService {
     }
 
     return [...deduped.values()];
+  }
+
+  private getAmountPerPackage(unitFactor?: number | null, unit?: string | null) {
+    return toBasePackageAmount(unitFactor, unit) ?? 1;
+  }
+
+  private getBaseDisplayUnit(unit?: string | null) {
+    const normalized = normalizeUnit(unit ?? '');
+
+    if (normalized === 'kg' || normalized === 'lb' || normalized === 'oz') {
+      return 'g';
+    }
+
+    if (normalized === 'l' || normalized === 'cup' || normalized === 'tbsp' || normalized === 'tsp') {
+      return 'ml';
+    }
+
+    return normalized;
   }
 
   private handleSchemaMismatch(error: unknown) {

@@ -63,3 +63,22 @@ export async function apiPatch<T>(
   }
   return res.json()
 }
+
+export async function apiDelete<T>(path: string, token?: string): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  })
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.message || 'Request failed')
+  }
+
+  const text = await res.text()
+  return (text ? JSON.parse(text) : {}) as T
+}

@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Post, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Req } from '@nestjs/common';
 import type { Request } from 'express';
 import { MetroService } from './metro.service';
 import { SyncMetroDto } from './dto/sync-metro.dto';
+import { UpdateFridgeItemDto } from './dto/update-fridge-item.dto';
 
 @Controller('metro')
 export class MetroController {
@@ -15,5 +16,19 @@ export class MetroController {
   @Get('fridge')
   async getFridge(@Req() req: Request) {
     return this.metroService.getFridgeItems(req.headers.authorization);
+  }
+
+  @Patch('fridge/:id')
+  async updateFridgeItem(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() body: UpdateFridgeItemDto,
+  ) {
+    return this.metroService.updateFridgeItem(req.headers.authorization, id, body);
+  }
+
+  @Delete('fridge/:id')
+  async deleteFridgeItem(@Req() req: Request, @Param('id') id: string) {
+    return this.metroService.deleteFridgeItem(req.headers.authorization, id);
   }
 }

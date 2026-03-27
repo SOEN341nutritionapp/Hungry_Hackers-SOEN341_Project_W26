@@ -1,119 +1,296 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import type { FridgeItem, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateMealPlanDto } from './dto/create-meal-plan.dto';
+import {
+  deriveVisibleQuantity,
+  formatAmountLabel,
+  getUnitFamily,
+  parseIngredient,
+  scoreIngredientItemMatch,
+} from '../inventory/inventory-utils';
 
 @Injectable()
 export class MealPlansService {
-    // inject prosmaservice so we can access the database
-    constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) {}
 
-    // helper function: calculate the Monday of any given week, 
-    // since we store weekStart (the Monday) to make queerying easier
-    // so if ua user gives us wednesdat march 5, we calculate Monnday March 3
-private getWeekStart(date: Date): Date {
-  const d = new Date(date);
-  const day = d.getUTCDay();  // ← Use getUTCDay() not getDay()
-  
-  // Calculate days to subtract to get to Monday
-  const daysToSubtract = day === 0 ? 6 : day - 1;
-  
-  // Create new date for Monday
-  const monday = new Date(Date.UTC(
-    d.getUTCFullYear(),
-    d.getUTCMonth(),
-    d.getUTCDate() - daysToSubtract,
-    0, 0, 0, 0
-  ));
-    
-  return monday;
-}
-    // ============= GET: Fetch all meals for a specific task =================
-    // Called by: Get /meal-plans/:userId/:weekStart
-    // example: findByWeek("user-123", "2026-03-03")
-    // returns: all meal plans for that week with the full recipe details
-    async findByWeek(userId: string, weekStart: string){
-        // Parse as UTC midnight to match what's in database
-        const [year, month, day] = weekStart.split('-').map(Number);
-        const weekStartDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
-        
-        return this.prisma.mealPlan.findMany({
-            where: {
-                userId,                             
-                weekStart: weekStartDate,  // ← Use parsed UTC date
-            },
-            include: {
-                recipe: true
-            },
-            orderBy: {
-                date: 'asc',
-            },
-        });
+  private getWeekStart(date: Date): Date {
+    const d = new Date(date);
+    const day = d.getUTCDay();
+    const daysToSubtract = day === 0 ? 6 : day - 1;
+
+    return new Date(
+      Date.UTC(
+        d.getUTCFullYear(),
+        d.getUTCMonth(),
+        d.getUTCDate() - daysToSubtract,
+        0,
+        0,
+        0,
+        0,
+      ),
+    );
+  }
+
+  async findByWeek(userId: string, weekStart: string) {
+    const [year, month, day] = weekStart.split('-').map(Number);
+    const weekStartDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+
+    return this.prisma.mealPlan.findMany({
+      where: {
+        userId,
+        weekStart: weekStartDate,
+      },
+      include: {
+        recipe: true,
+      },
+      orderBy: {
+        date: 'asc',
+      },
+    });
+  }
+
+  async create(userId: string, createMealPlanDto: CreateMealPlanDto) {
+    const { recipeId, date, mealType } = createMealPlanDto;
+    const [year, month, day] = date.split('-').map(Number);
+    const mealDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+    const weekStart = this.getWeekStart(mealDate);
+
+    const existingMealInWeek = await this.prisma.mealPlan.findFirst({
+      where: {
+        userId,
+        recipeId,
+        weekStart,
+      },
+    });
+
+    if (existingMealInWeek) {
+      throw new ConflictException('This recipe is already planned for this week!');
     }
 
-    // ============= POST: Create a new meal plan =============================
-    // Called bu: POST /meal-plans/:userId
-    /* workflow:
-        1. takes the recipe ID, date, and meal type from the request
-        2. Calculates which Monday that date belongs to (weekStart)
-        3. Creates a new entry in the MealPlan table
-        4. Returns the created meal plan 
-    */
-    async create(userId: string, CreateMealPlanDto: CreateMealPlanDto) {
-        const { recipeId, date, mealType } = CreateMealPlanDto;
+    return this.prisma.$transaction(async (tx) => {
+      const recipe = await tx.recipe.findFirst({
+        where: {
+          id: recipeId,
+          userId,
+        },
+      });
 
-        // Parse date as UTC
-        const [year, month, day] = date.split('-').map(Number);
-        const mealDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
-                
-        const weekStart = this.getWeekStart(mealDate);
-        
-        // ========== CHECK FOR DUPLICATE ==========
-        const existingMealInWeek = await this.prisma.mealPlan.findFirst({
-            where: {
-            userId,
-            recipeId,
-            weekStart,
-            },
-        });
+      if (!recipe) {
+        throw new NotFoundException('Recipe not found');
+      }
 
-        if (existingMealInWeek) {
-            throw new ConflictException(
-            'This recipe is already planned for this week!'
-            );
-        }
-        // =========================================
-        return this.prisma.mealPlan.create({
-            data: {
-                userId,
-                recipeId,
-                date: mealDate,
-                mealType,
-                weekStart,
-            },
-            include: {
-                recipe: true,
-            },
-        });
-    }
+      const mealPlan = await tx.mealPlan.create({
+        data: {
+          userId,
+          recipeId,
+          date: mealDate,
+          mealType,
+          weekStart,
+        },
+        include: {
+          recipe: true,
+        },
+      });
 
+      const fridgeItems = await tx.fridgeItem.findMany({
+        where: { userId },
+        orderBy: [{ createdAt: 'asc' }, { name: 'asc' }],
+      });
 
-     // =========== DELETE: Remove a meal plan ================================
-     // called by: Delete /meal-plans/:userId/:id
-    async remove(userId: string, id: string) {
-        const mealPlan = await this.prisma.mealPlan.findUnique({
-            where: { id }, // find by meal plan id
-        });
+      const consumedItems: Array<{
+        ingredientName: string;
+        fridgeItemName: string;
+        amountConsumed: number;
+        unit: string;
+        label: string;
+      }> = [];
 
-        if(!mealPlan) {
-            throw new NotFoundException('Meal Plan Not Found');
+      const missingIngredients: Array<{
+        ingredientName: string;
+        amountRequested: number;
+        unit: string;
+      }> = [];
+
+      const ingredients = Array.isArray(recipe.ingredients)
+        ? (recipe.ingredients as Prisma.JsonArray)
+        : [];
+
+      for (const rawIngredient of ingredients) {
+        const parsedIngredient = parseIngredient(rawIngredient);
+        if (!parsedIngredient) {
+          continue;
         }
 
-        if (mealPlan.userId !== userId) {
-            throw new NotFoundException('Meal Plan Not Found');
+        const matchedItem = this.findBestFridgeMatch(parsedIngredient.name, parsedIngredient.baseUnit, fridgeItems);
+        if (!matchedItem) {
+          missingIngredients.push({
+            ingredientName: parsedIngredient.name,
+            amountRequested: parsedIngredient.baseAmount,
+            unit: parsedIngredient.baseUnit,
+          });
+          continue;
         }
 
-        return this.prisma.mealPlan.delete({
-            where: { id },
+        const amountConsumed = Math.min(
+          parsedIngredient.baseAmount,
+          matchedItem.availableAmount,
+        );
+
+        if (amountConsumed <= 0) {
+          missingIngredients.push({
+            ingredientName: parsedIngredient.name,
+            amountRequested: parsedIngredient.baseAmount,
+            unit: parsedIngredient.baseUnit,
+          });
+          continue;
+        }
+
+        const nextAvailableAmount = matchedItem.availableAmount - amountConsumed;
+        const nextQuantity =
+          nextAvailableAmount > 0
+            ? deriveVisibleQuantity(
+                nextAvailableAmount,
+                matchedItem.unitFactor,
+                matchedItem.quantity,
+              )
+            : 0;
+
+        await tx.fridgeItem.update({
+          where: { id: matchedItem.id },
+          data: {
+            availableAmount: nextAvailableAmount,
+            quantity: nextQuantity,
+          },
         });
-    }
+
+        matchedItem.availableAmount = nextAvailableAmount;
+        matchedItem.quantity = nextQuantity;
+
+        await tx.mealPlanConsumption.create({
+          data: {
+            mealPlanId: mealPlan.id,
+            fridgeItemId: matchedItem.id,
+            ingredientName: parsedIngredient.name,
+            amountConsumed,
+            unit: parsedIngredient.baseUnit,
+          },
+        });
+
+        consumedItems.push({
+          ingredientName: parsedIngredient.name,
+          fridgeItemName: matchedItem.name,
+          amountConsumed,
+          unit: parsedIngredient.baseUnit,
+          label: formatAmountLabel(amountConsumed, parsedIngredient.baseUnit),
+        });
+
+        if (amountConsumed < parsedIngredient.baseAmount) {
+          missingIngredients.push({
+            ingredientName: parsedIngredient.name,
+            amountRequested: parsedIngredient.baseAmount - amountConsumed,
+            unit: parsedIngredient.baseUnit,
+          });
+        }
+      }
+
+      return {
+        ...mealPlan,
+        fridgeUpdates: consumedItems,
+        missingIngredients: missingIngredients.map((item) => ({
+          ...item,
+          label: formatAmountLabel(item.amountRequested, item.unit),
+        })),
+      };
+    });
+  }
+
+  async remove(userId: string, id: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const mealPlan = await tx.mealPlan.findUnique({
+        where: { id },
+        include: {
+          consumptions: true,
+        },
+      });
+
+      if (!mealPlan || mealPlan.userId !== userId) {
+        throw new NotFoundException('Meal Plan Not Found');
+      }
+
+      const restoredItems: Array<{
+        ingredientName: string;
+        amountRestored: number;
+        unit: string;
+        label: string;
+      }> = [];
+
+      for (const consumption of mealPlan.consumptions) {
+        if (!consumption.fridgeItemId) {
+          continue;
+        }
+
+        const fridgeItem = await tx.fridgeItem.findUnique({
+          where: { id: consumption.fridgeItemId },
+        });
+
+        if (!fridgeItem) {
+          continue;
+        }
+
+        const nextAvailableAmount =
+          fridgeItem.availableAmount + consumption.amountConsumed;
+        const nextQuantity = deriveVisibleQuantity(
+          nextAvailableAmount,
+          fridgeItem.unitFactor,
+          fridgeItem.quantity || 1,
+        );
+
+        await tx.fridgeItem.update({
+          where: { id: fridgeItem.id },
+          data: {
+            availableAmount: nextAvailableAmount,
+            quantity: nextQuantity,
+          },
+        });
+
+        restoredItems.push({
+          ingredientName: consumption.ingredientName,
+          amountRestored: consumption.amountConsumed,
+          unit: consumption.unit,
+          label: formatAmountLabel(consumption.amountConsumed, consumption.unit),
+        });
+      }
+
+      await tx.mealPlan.delete({
+        where: { id: mealPlan.id },
+      });
+
+      return {
+        ok: true,
+        restoredItems,
+      };
+    });
+  }
+
+  private findBestFridgeMatch(
+    ingredientName: string,
+    unit: string,
+    fridgeItems: FridgeItem[],
+  ) {
+    const targetFamily = getUnitFamily(unit);
+
+    return fridgeItems
+      .filter((item) => item.availableAmount > 0)
+      .filter((item) => {
+        const itemFamily = getUnitFamily(item.unit);
+        return !targetFamily || !itemFamily || targetFamily === itemFamily;
+      })
+      .map((item) => ({
+        item,
+        score: scoreIngredientItemMatch(ingredientName, item.name),
+      }))
+      .filter((candidate) => candidate.score >= 0)
+      .sort((left, right) => right.score - left.score)[0]?.item;
+  }
 }

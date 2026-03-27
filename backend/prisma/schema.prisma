@@ -29,6 +29,7 @@ model User {
 
   recipes           Recipe[]
   fridgeItems       FridgeItem[]
+  fridgeSyncStates  FridgeSyncState[]
   mealPlans         MealPlan[]
   extensionSessions ExtensionSession[]
 }
@@ -83,17 +84,20 @@ model FridgeItem {
   name           String
   normalizedName String
   quantity       Int
+  availableAmount Float   @default(0)
   unit           String?
-  unitFactor     Int?
+  unitFactor     Float?
   sizeLabel      String?
   imageUrl       String?
   source         String   @default("metro")
   syncedAt       DateTime @default(now())
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  consumptions   MealPlanConsumption[]
 
   @@index([userId])
   @@index([userId, normalizedName])
+  @@unique([userId, normalizedName, source])
 }
 model MealPlan {
   id                 String  @id @default(uuid())
@@ -108,8 +112,37 @@ model MealPlan {
   // Relations between other tables
   user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   recipe             Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  consumptions       MealPlanConsumption[]
 
   // Prevent duplicates for the SAME day 
   @@unique([userId, recipeId, date, mealType])
   @@index([userId, weekStart])
+}
+
+model FridgeSyncState {
+  id                 String   @id @default(cuid())
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  source             String
+  normalizedName     String
+  lastSyncedQuantity Int      @default(0)
+  updatedAt          DateTime @updatedAt
+
+  @@unique([userId, source, normalizedName])
+  @@index([userId, source])
+}
+
+model MealPlanConsumption {
+  id             String     @id @default(cuid())
+  mealPlanId     String
+  mealPlan       MealPlan   @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
+  fridgeItemId   String?
+  fridgeItem     FridgeItem? @relation(fields: [fridgeItemId], references: [id], onDelete: SetNull)
+  ingredientName String
+  amountConsumed Float
+  unit           String
+  createdAt      DateTime   @default(now())
+
+  @@index([mealPlanId])
+  @@index([fridgeItemId])
 }

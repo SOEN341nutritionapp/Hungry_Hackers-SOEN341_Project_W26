@@ -1,209 +1,370 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { UsersService } from './users.service';
+import { PrismaService } from '../prisma/prisma.service';
+import { BadRequestException } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
+jest.mock('bcrypt', () => ({
+  hash: jest.fn(),
+}));
+
 // ============================================================================
 // USER SERVICE UNIT TESTS
 // ============================================================================
-// This file tests the UsersService business logic for Sprint 1 (Profile Management)
-// We use Jest (testing framework) and mock Prisma (database) to test in isolation
-// ============================================================================
-
-import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
-import { UsersService } from './users.service';
-import { PrismaService } from '../prisma/prisma.service';
-
-// ============================================================================
-// MAIN TEST SUITE
+// Tests the UsersService business logic for Sprint 1 (User Profile Management)
 // ============================================================================
 describe('UsersService', () => {
   let service: UsersService;
-  let prisma: PrismaService;
 
-  // ==========================================================================
-  // MOCK DATA
-  // ==========================================================================
-  const mockUser = {
-    id: 'test-user-id',
-    email: 'test@example.com',
-    name: 'Test User',
-    password: 'hashed-password',
-    dateOfBirth: new Date('1990-01-01'),
-    sex: 'Male',
-    heightCm: 175,
-    weightKg: 70,
-    allergies: ['Peanuts'],
-    dietaryPreferences: ['Vegetarian'],
-    createdAt: new Date(),
-    updatedAt: new Date(),
+  // Mocked Prisma - replaces real database with fake functions
+  let prisma: {
+    user: {
+      update: jest.Mock;
+    };
   };
 
-  // ==========================================================================
-  // SETUP BEFORE EACH TEST
-  // ==========================================================================
+  // ========================================================================
+  // SETUP - Runs before each test
+  // ========================================================================
+  // Creates a fresh testing environment for every test
+  // Ensures tests don't interfere with each other
+  // ========================================================================
   beforeEach(async () => {
+    // Create mock Prisma with fake update method
+    prisma = {
+      user: {
+        update: jest.fn(),
+      },
+    };
+
+    // Build a mini NestJS module just for testing
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UsersService,
         {
           provide: PrismaService,
-          useValue: {
-            user: {
-              update: jest.fn(),
-            },
-          },
+          useValue: prisma, // Inject our mock instead of real Prisma
         },
       ],
     }).compile();
 
     service = module.get<UsersService>(UsersService);
-    prisma = module.get<PrismaService>(PrismaService);
-
-    jest.clearAllMocks();
   });
 
-  // ==========================================================================
-  // TEST 1: Service Should Be Defined
-  // ==========================================================================
-  it('should be defined', () => {
-    expect(service).toBeDefined();
-  });
-
-  // ==========================================================================
+  // ========================================================================
   // TEST GROUP: UPDATE ACCOUNT
-  // ==========================================================================
+  // ========================================================================
+  // Tests the updateAccount method (email, name, password updates)
+  // ========================================================================
   describe('updateAccount', () => {
-    // ------------------------------------------------------------------------
-    // TEST 2: Should Update Name Successfully
-    // ------------------------------------------------------------------------
-    it('should update name', async () => {
-      const updatedUser = { ...mockUser, name: 'Updated Name' };
-      jest.spyOn(prisma.user, 'update').mockResolvedValue(updatedUser as any);
+    // ----------------------------------------------------------------------
+    // TEST: Should Update Email Only
+    // ----------------------------------------------------------------------
+    // Verifies that email can be updated independently
+    // ----------------------------------------------------------------------
+    it('should update email only', async () => {
+      // ARRANGE: Mock what Prisma will return
+      const updatedUser = {
+        id: 'u1',
+        email: 'new@email.com',
+        name: 'Nigel',
+      };
+      prisma.user.update.mockResolvedValue(updatedUser);
 
-      const result = await service.updateAccount('test-user-id', {
-        name: 'Updated Name',
+      // ACT: Call the service method
+      const result = await service.updateAccount('u1', {
+        email: 'new@email.com',
       });
 
-      expect(result.name).toBe('Updated Name');
-      expect(prisma.user.update).toHaveBeenCalled();
+      // ASSERT: Verify Prisma was called correctly
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'u1' },
+        data: { email: 'new@email.com' },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      // ASSERT: Verify the result matches what Prisma returned
+      expect(result).toEqual(updatedUser);
     });
 
-    // ------------------------------------------------------------------------
-    // TEST 3: Should Throw Error for Forbidden Fields
-    // ------------------------------------------------------------------------
+    // ----------------------------------------------------------------------
+    // TEST: Should Update Name Only
+    // ----------------------------------------------------------------------
+    it('should update name only', async () => {
+      const updatedUser = {
+        id: 'u1',
+        email: 'old@email.com',
+        name: 'Kyle',
+      };
+      prisma.user.update.mockResolvedValue(updatedUser);
+
+      const result = await service.updateAccount('u1', {
+        name: 'Kyle',
+      });
+
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'u1' },
+        data: { name: 'Kyle' },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      expect(result).toEqual(updatedUser);
+    });
+
+    // ----------------------------------------------------------------------
+    // TEST: Should Hash Password Before Updating
+    // ----------------------------------------------------------------------
+    // Security test: Ensures passwords are hashed, never stored as plain text
+    // ----------------------------------------------------------------------
+    it('should hash the password before updating', async () => {
+      // ARRANGE: Mock bcrypt to return a fake hashed password
+      (bcrypt.hash as jest.Mock).mockResolvedValue('hashedPassword');
+
+      prisma.user.update.mockResolvedValue({
+        id: 'u1',
+        email: 'test@email.com',
+        name: 'Nigel',
+      });
+
+      // ACT: Try to update password
+      await service.updateAccount('u1', {
+        password: 'plainPassword',
+      });
+
+      // ASSERT: Verify bcrypt was called to hash the password
+      expect(bcrypt.hash).toHaveBeenCalledWith('plainPassword', 10);
+
+      // ASSERT: Verify the HASHED password (not plain) was sent to database
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'u1' },
+        data: { password: 'hashedPassword' },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+    });
+
+    // ----------------------------------------------------------------------
+    // TEST: Should Update Multiple Fields Together
+    // ----------------------------------------------------------------------
+    it('should update multiple allowed fields together', async () => {
+      (bcrypt.hash as jest.Mock).mockResolvedValue('hashedPassword');
+
+      prisma.user.update.mockResolvedValue({
+        id: 'u1',
+        email: 'new@email.com',
+        name: 'New Name',
+      });
+
+      await service.updateAccount('u1', {
+        email: 'new@email.com',
+        name: 'New Name',
+        password: 'plainPassword',
+      });
+
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'u1' },
+        data: {
+          email: 'new@email.com',
+          name: 'New Name',
+          password: 'hashedPassword',
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+    });
+
+    // ----------------------------------------------------------------------
+    // TEST: Should Reject Forbidden Fields
+    // ----------------------------------------------------------------------
+    // Security test: Users shouldn't be able to change their ID or timestamps
+    // ----------------------------------------------------------------------
     it('should throw BadRequestException for forbidden fields', async () => {
+      // ASSERT: Attempting to update 'id' should throw error
       await expect(
-        service.updateAccount('test-user-id', { id: 'new-id' })
+        service.updateAccount('u1', { id: 'new-id' }),
+      ).rejects.toThrow(BadRequestException);
+
+      // ASSERT: Attempting to update 'createdAt' should throw error
+      await expect(
+        service.updateAccount('u1', { createdAt: new Date() }),
+      ).rejects.toThrow(BadRequestException);
+
+      // ASSERT: Attempting to update 'updatedAt' should throw error
+      await expect(
+        service.updateAccount('u1', { updatedAt: new Date() }),
       ).rejects.toThrow(BadRequestException);
     });
+
+    // ----------------------------------------------------------------------
+    // TEST: Should Reject Empty Updates
+    // ----------------------------------------------------------------------
+    it('should throw BadRequestException when no valid fields are provided', async () => {
+      await expect(service.updateAccount('u1', {})).rejects.toThrow(
+        BadRequestException,
+      );
+    });
   });
 
-  // ==========================================================================
+  // ========================================================================
   // TEST GROUP: UPDATE PROFILE
-  // ==========================================================================
+  // ========================================================================
+  // Tests the updateProfile method (diet preferences, allergies, physical stats)
+  // ========================================================================
   describe('updateProfile', () => {
-    // ------------------------------------------------------------------------
-    // TEST 4: Should Update Dietary Preferences
-    // ------------------------------------------------------------------------
-    it('should update dietary preferences', async () => {
-      const updatedUser = { 
-        ...mockUser, 
-        dietaryPreferences: ['Vegan', 'Gluten-Free'] 
-      };
-      jest.spyOn(prisma.user, 'update').mockResolvedValue(updatedUser as any);
-
-      const result = await service.updateProfile('test-user-id', {
-        dietaryPreferences: ['Vegan', 'Gluten-Free'],
-      });
-
-      expect(result.dietaryPreferences).toEqual(['Vegan', 'Gluten-Free']);
-      expect(prisma.user.update).toHaveBeenCalled();
-    });
-
-    // ------------------------------------------------------------------------
-    // TEST 5: Should Update Allergies
-    // ------------------------------------------------------------------------
-    it('should update allergies', async () => {
-      const updatedUser = { 
-        ...mockUser, 
-        allergies: ['Shellfish', 'Dairy'] 
-      };
-      jest.spyOn(prisma.user, 'update').mockResolvedValue(updatedUser as any);
-
-      const result = await service.updateProfile('test-user-id', {
-        allergies: ['Shellfish', 'Dairy'],
-      });
-
-      expect(result.allergies).toEqual(['Shellfish', 'Dairy']);
-      expect(prisma.user.update).toHaveBeenCalled();
-    });
-
-    // ------------------------------------------------------------------------
-    // TEST 6: Should Update Height and Weight
-    // ------------------------------------------------------------------------
-    it('should update height and weight', async () => {
-      const updatedUser = { 
-        ...mockUser, 
-        heightCm: 180,
-        weightKg: 75 
-      };
-      jest.spyOn(prisma.user, 'update').mockResolvedValue(updatedUser as any);
-
-      const result = await service.updateProfile('test-user-id', {
+    // ----------------------------------------------------------------------
+    // TEST: Should Update All Profile Fields
+    // ----------------------------------------------------------------------
+    it('should update profile fields correctly', async () => {
+      const updatedUser = {
+        id: 'u1',
+        email: 'test@email.com',
+        name: 'Nigel',
+        sex: 'male',
         heightCm: 180,
         weightKg: 75,
+        allergies: ['nuts'],
+        dietaryPreferences: ['vegan'],
+      };
+
+      prisma.user.update.mockResolvedValue(updatedUser);
+
+      const result = await service.updateProfile('u1', {
+        sex: 'male',
+        heightCm: 180,
+        weightKg: 75,
+        allergies: ['nuts'],
+        dietaryPreferences: ['vegan'],
       });
 
-      expect(result.heightCm).toBe(180);
-      expect(result.weightKg).toBe(75);
-      expect(prisma.user.update).toHaveBeenCalled();
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'u1' },
+        data: {
+          sex: 'male',
+          heightCm: 180,
+          weightKg: 75,
+          allergies: ['nuts'],
+          dietaryPreferences: ['vegan'],
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          dateOfBirth: true,
+          sex: true,
+          heightCm: true,
+          weightKg: true,
+          allergies: true,
+          dietaryPreferences: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      expect(result).toEqual(updatedUser);
     });
 
-    // ------------------------------------------------------------------------
-    // TEST 7: Should Update Sex
-    // ------------------------------------------------------------------------
-    it('should update sex', async () => {
-      const updatedUser = { 
-        ...mockUser, 
-        sex: 'Female' 
-      };
-      jest.spyOn(prisma.user, 'update').mockResolvedValue(updatedUser as any);
-
-      const result = await service.updateProfile('test-user-id', {
-        sex: 'Female',
+    // ----------------------------------------------------------------------
+    // TEST: Should Convert Date String to Date Object
+    // ----------------------------------------------------------------------
+    // Ensures date strings from frontend are properly converted
+    // ----------------------------------------------------------------------
+    it('should convert dateOfBirth string into a Date object', async () => {
+      prisma.user.update.mockResolvedValue({
+        id: 'u1',
+        dateOfBirth: new Date('2000-01-01'),
       });
 
-      expect(result.sex).toBe('Female');
-      expect(prisma.user.update).toHaveBeenCalled();
+      await service.updateProfile('u1', {
+        dateOfBirth: '2000-01-01',
+      } as any);
+
+      // ASSERT: Date string was converted to Date object before saving
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'u1' },
+        data: {
+          dateOfBirth: new Date('2000-01-01'),
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          dateOfBirth: true,
+          sex: true,
+          heightCm: true,
+          weightKg: true,
+          allergies: true,
+          dietaryPreferences: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
     });
 
-    // ------------------------------------------------------------------------
-    // TEST 8: Should Update Date of Birth
-    // ------------------------------------------------------------------------
-    it('should update date of birth', async () => {
-      const newDate = new Date('1995-05-15');
-      const updatedUser = { 
-        ...mockUser, 
-        dateOfBirth: newDate 
-      };
-      jest.spyOn(prisma.user, 'update').mockResolvedValue(updatedUser as any);
-
-      const result = await service.updateProfile('test-user-id', {
-        dateOfBirth: '1995-05-15',
+    // ----------------------------------------------------------------------
+    // TEST: Should Update Multiple Profile Fields Together
+    // ----------------------------------------------------------------------
+    it('should update multiple profile fields together', async () => {
+      prisma.user.update.mockResolvedValue({
+        id: 'u1',
+        sex: 'female',
+        heightCm: 165,
       });
 
-      expect(result.dateOfBirth).toEqual(newDate);
-      expect(prisma.user.update).toHaveBeenCalled();
+      await service.updateProfile('u1', {
+        sex: 'female',
+        heightCm: 165,
+      } as any);
+
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'u1' },
+        data: {
+          sex: 'female',
+          heightCm: 165,
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          dateOfBirth: true,
+          sex: true,
+          heightCm: true,
+          weightKg: true,
+          allergies: true,
+          dietaryPreferences: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+    });
+
+    // ----------------------------------------------------------------------
+    // TEST: Should Reject Empty Profile Updates
+    // ----------------------------------------------------------------------
+    it('should throw BadRequestException when no valid profile fields are provided', async () => {
+      await expect(service.updateProfile('u1', {} as any)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 });
-
-// ============================================================================
-// TEST SUMMARY
-// ============================================================================
-// Total Tests: 8
-// - 1 basic service definition test
-// - 2 updateAccount tests (name update, forbidden fields protection)
-// - 5 updateProfile tests (diet preferences, allergies, height/weight, sex, date of birth)
-//
-// Coverage: All user account and profile management features (Sprint 1)
-// Testing Strategy: Unit testing with mocked dependencies
-// Framework: Jest + NestJS Testing utilities
-// ============================================================================

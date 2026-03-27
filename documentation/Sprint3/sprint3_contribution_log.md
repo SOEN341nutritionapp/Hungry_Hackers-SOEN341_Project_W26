@@ -10,8 +10,8 @@
 |:-------|:-----|:-----------|------------:|
 | Dylan | Dev 2 | Sidebar + Drag/Drop + Search | 22 hrs |
 | Mouawad | Dev 3 | Documentation | 12 hrs |
-| Nigel | Dev 1 | Meal Planner (Front + Back) | 28 hrs |
-| Ishika | Dev 5 | AI Dashboard | 18 hrs |
+| Nigel | Dev 1 | Meal Planner (Front + Back) + Unit Tests| 28 hrs |
+| Ishika | Dev 5 | AI Dashboard + Acceptance Tests | 18 hrs |
 | Taras | Dev 4 | Special Feature | 20 hrs |
 
 ---

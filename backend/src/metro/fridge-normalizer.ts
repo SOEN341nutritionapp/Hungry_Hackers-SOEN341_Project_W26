@@ -77,9 +77,14 @@ export function normalizeMetroItem(
   }
 
   const extractedSizeLabel = extractSizeLabel(rawName);
+  const normalizedInputUnitFactor = normalizeUnitFactor(item.unitFactor);
+  const normalizedPackageAmount = convertToInventoryAmount(
+    normalizedInputUnitFactor ?? Number.NaN,
+    item.unit,
+  );
   const sizeLabel =
     normalizeSizeLabel(item.sizeLabel) ??
-    buildSizeLabelFromUnit(item.unitFactor, item.unit) ??
+    buildSizeLabelFromUnit(normalizedInputUnitFactor, item.unit) ??
     extractedSizeLabel;
 
   const displayName = simplifyProductName(rawName);
@@ -90,8 +95,8 @@ export function normalizeMetroItem(
     name: displayName,
     normalizedName,
     quantity: item.quantity,
-    unit: normalizeUnit(item.unit),
-    unitFactor: normalizeUnitFactor(item.unitFactor),
+    unit: normalizedPackageAmount?.unit,
+    unitFactor: normalizedPackageAmount?.value,
     sizeLabel,
     imageUrl: sanitizeImageUrl(item.imageUrl),
   };
@@ -194,36 +199,21 @@ function scoreSegment(value: string) {
 }
 
 function buildSizeLabelFromUnit(unitFactor?: number, unit?: string) {
-  const normalizedUnit = normalizeUnit(unit);
   const normalizedUnitFactor = normalizeUnitFactor(unitFactor);
 
-  if (!normalizedUnit || !normalizedUnitFactor) {
+  if (!unit || !normalizedUnitFactor) {
     return undefined;
   }
 
-  return `${normalizedUnitFactor} ${formatUnitForDisplay(normalizedUnit)}`;
-}
-
-function normalizeUnit(unit?: string | null) {
-  if (!unit) {
-    return undefined;
-  }
-
-  const normalized = unit.trim().toLowerCase();
-
-  if (normalized === 'each' || normalized === 'un') {
-    return 'ea';
-  }
-
-  return normalized || undefined;
+  return `${normalizedUnitFactor} ${formatUnitForDisplay(unit.toLowerCase())}`;
 }
 
 function normalizeUnitFactor(unitFactor?: number | null) {
-  if (!unitFactor || !Number.isFinite(unitFactor) || unitFactor < 1) {
+  if (!unitFactor || !Number.isFinite(unitFactor) || unitFactor <= 0) {
     return undefined;
   }
 
-  return Math.round(unitFactor);
+  return unitFactor;
 }
 
 function normalizeSizeLabel(value?: string | null) {
@@ -314,3 +304,4 @@ function formatUnitForDisplay(unit: string) {
 function escapeForRegex(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
+import { convertToInventoryAmount } from '../inventory/inventory-utils';

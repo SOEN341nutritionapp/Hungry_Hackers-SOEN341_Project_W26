@@ -3,7 +3,6 @@ import { useAuth } from '../AuthContext'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import CalendarGrid from '../components/CalendarGrid'
 import RecipeSidebar from '../components/RecipeSidebar';
-import { apiGet } from '../api'
 
 /*
     This page displays a weekly meal plammer where users can view and manage
@@ -14,6 +13,7 @@ import { apiGet } from '../api'
 export default function CalendarPage() {
     const { user, loading: authLoading } = useAuth()
     const userId = user?.id 
+    const API_URL = import.meta.env.VITE_API_URL
 
     // STATES
     const [currentWeekStart, setCurrentWeekStart] = useState<Date>(getWeekStart(new Date()))
@@ -67,11 +67,18 @@ export default function CalendarPage() {
             // convert Date to string format '2026-03-03' for API
             const weekStartString = currentWeekStart.toISOString().split('T')[0]
 
-            const data = await apiGet<any[]>(`/meal-plans/${userId}/${weekStartString}`)
-            setMeals(Array.isArray(data) ? data : [])
+            // call backend to get all the meals for this week 
+            const response = await fetch(`${API_URL}/meal-plans/${userId}/${weekStartString}`)
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch meals')
+            }
+            // parse response and store in state
+            const data = await response.json()
+
+            setMeals(data)
         } catch (err){
             setError(err instanceof Error ? err.message : 'An error occured')
-            setMeals([])
         } finally {
             setLoading(false)
         }
@@ -95,10 +102,22 @@ export default function CalendarPage() {
     if (authLoading || loading) {
         return (
             <div className='flex items-center justify-center min-h-[400px]'>
-                <span className='loading loading-spinner loading-lg text-primary'></span>
+                <span className='loading loading-spinner loading-lg'></span>
             </div>
         )
     }
+
+    // Error State
+    if (error) {
+        return (
+            <div className='max-w-3xl'>
+                <div className='aler alert-error'>
+                    <span>Error: {error}</span>
+                </div>
+            </div>
+        )
+    }
+
 
     // Returns true if any meal in the current week matches this ID
     const isDuplicateMeal = (recipeId: string): boolean => {
@@ -120,12 +139,6 @@ export default function CalendarPage() {
                 <p className='opacity-70'>Plan your meals for the week ahead!</p>
                 <div className="mt-2 h-1 w-20 rounded-full bg-primary/70"></div>
             </div>
-
-            {error && (
-                <div className='alert alert-warning mb-6'>
-                    <span>Could not load saved meals. Showing an empty calendar for now. Backend said: {error}</span>
-                </div>
-            )}
             
             {/* Calendar Grid Container (to be done) */}
             <div className="flex gap-6 items-start">

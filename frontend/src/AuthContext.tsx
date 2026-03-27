@@ -32,27 +32,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     auth
       .refresh()
-      .then((data: any) => {
-        const token = typeof data === 'string' ? data : data.accessToken;
-        setAccessToken(token);
+      .then(async (data: any) => {
+        const token = typeof data === 'string' ? data : data.accessToken
+        setAccessToken(token)
 
-        if (data.user) {
-          setUser(data.user);
-          localStorage.setItem('mealmajor_user', JSON.stringify(data.user));
-        }
         if (token) {
-          localStorage.setItem('token', token);
+          localStorage.setItem('token', token)
+        }
+
+        const savedUser = localStorage.getItem('mealmajor_user')
+        let nextUser = data.user
+
+        if (!nextUser && savedUser) {
+          try {
+            nextUser = JSON.parse(savedUser)
+          } catch (e) {
+            nextUser = null
+          }
+        }
+
+        if (!nextUser && token) {
+          nextUser = await auth.getProfile().catch(() => null)
+        }
+
+        if (nextUser) {
+          setUser(nextUser)
+          localStorage.setItem('mealmajor_user', JSON.stringify(nextUser))
         }
       })
       .catch(() => {
-        
-        setAccessToken(null);
-        setUser(null);
-        localStorage.removeItem('token');
-        localStorage.removeItem('mealmajor_user');
+        setAccessToken(null)
+        setUser(null)
+        localStorage.removeItem('token')
+        localStorage.removeItem('mealmajor_user')
       })
-      .finally(() => setLoading(false));
-  }, []);
+      .finally(() => setLoading(false))
+  }, [])
 
   const login = async (email: string, password: string) => {
     const data = await auth.login(email, password) as any;

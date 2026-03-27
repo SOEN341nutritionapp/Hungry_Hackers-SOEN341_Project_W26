@@ -25,6 +25,7 @@ interface CalendarGridProps {
 }
 
 export default function CalendarGrid({ weekStart, meals, onMealAdded, onMealDeleted, isDuplicateCheck }: CalendarGridProps) {
+    const safeMeals = Array.isArray(meals) ? meals.filter(Boolean) : []
   
     // HELPER: Get date for a specific day offset
     const getDayDate = (dayIndex: number): Date => {
@@ -37,8 +38,17 @@ export default function CalendarGrid({ weekStart, meals, onMealAdded, onMealDele
 const findMeal = (date: Date, mealType: string) => {
     const dateString = date.toISOString().split('T')[0]
     
-    const found = meals.find(meal => {
-        const mealDateString = new Date(meal.date).toISOString().split('T')[0]
+    const found = safeMeals.find(meal => {
+        if (!meal?.date || !meal?.mealType) {
+            return false
+        }
+
+        const parsedMealDate = new Date(meal.date)
+        if (Number.isNaN(parsedMealDate.getTime())) {
+            return false
+        }
+
+        const mealDateString = parsedMealDate.toISOString().split('T')[0]
         const matches = mealDateString === dateString && meal.mealType === mealType
         
         return matches

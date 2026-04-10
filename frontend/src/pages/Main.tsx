@@ -25,11 +25,22 @@ interface UpcomingMealCard {
   calories: number | null
 }
 
-const mealTypeLabels: Record<string, string> = {
-  breakfast: 'Breakfast',
-  lunch: 'Lunch',
-  dinner: 'Dinner',
-  snack: 'Snack',
+interface ChatMessage {
+  sender: 'user' | 'ai'
+  text: string
+}
+
+interface AiSuggestion {
+  id: string
+  title: string
+  reason?: string
+  source?: string
+  url?: string
+}
+
+interface AiChatResponse {
+  reply: string
+  suggestions?: AiSuggestion[]
 }
 
 export default function Main() {
@@ -38,14 +49,20 @@ export default function Main() {
   const [mealCount, setMealCount] = useState(0)
   const [recipeCount, setRecipeCount] = useState(0)
   const [plannedMeals, setPlannedMeals] = useState<MealPlan[]>([])
-  const [chatMessages, setChatMessages] = useState([
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
       sender: 'ai',
       text: "Hi! I'm your AI meal planning assistant. How can I help you today?",
     },
   ])
   const [inputMessage, setInputMessage] = useState('')
+  const [isChatLoading, setIsChatLoading] = useState(false)
   const API_URL = import.meta.env.VITE_API_URL
+  const quickPrompts = [
+    'Use my fridge ingredients',
+    'Suggest a vegetarian recipe',
+    'Suggest a recipe with 10 servings',
+  ]
 
   const firstName = user?.name?.trim()?.split(/\s+/)[0] || 'there'
   const userId = user?.id
@@ -88,7 +105,7 @@ export default function Main() {
         day: formattedDate.day,
         date: formattedDate.date,
         meal: meal.recipe?.title ?? 'Untitled Recipe',
-        time: mealTypeLabels[meal.mealType] ?? meal.mealType,
+        time: meal.mealType,
         calories: typeof meal.recipe?.calories === 'number' ? meal.recipe.calories : null,
       }
     })
@@ -164,31 +181,75 @@ export default function Main() {
     },
   ]
 
-  const handleSendMessage = () => {
-    if (!inputMessage.trim()) {
+  const formatAiMessage = (reply: string, suggestions?: AiSuggestion[]) => {
+    const trimmedReply = reply.trim()
+
+    if (!suggestions?.length) {
+      return trimmedReply
+    }
+
+    const formattedSuggestions = suggestions.map((suggestion, index) => {
+      const reason = suggestion.reason?.trim()
+
+      return `${index + 1}. ${suggestion.title}${reason ? ` - ${reason}` : ''}`
+    })
+
+    return `${trimmedReply}\n\n${formattedSuggestions.join('\n')}`
+  }
+
+  const handleSendMessage = async () => {
+    const trimmedMessage = inputMessage.trim()
+
+    if (!trimmedMessage || !userId || isChatLoading) {
       return
     }
 
-    setChatMessages((prev) => [...prev, { sender: 'user', text: inputMessage }])
+    setInputMessage('')
+    setIsChatLoading(true)
+    setChatMessages((prev) => [...prev, { sender: 'user', text: trimmedMessage }])
 
-    setTimeout(() => {
-      const responses = [
-        'That sounds like a great meal! Would you like me to help you add it to your calendar?',
-        'I can help you find recipes that match your preferences. What type of cuisine are you interested in?',
-        'Based on your meal history, I recommend trying Mediterranean dishes this week!',
-        'I can generate a shopping list for your upcoming meals. Would you like me to do that?',
-      ]
+    try {
+      const response = await fetch(`${API_URL}/ai/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          message: trimmedMessage,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch AI response')
+      }
+
+      const data: AiChatResponse = await response.json()
+      const replyText = typeof data.reply === 'string' ? data.reply : ''
+
+      if (!replyText.trim()) {
+        throw new Error('Invalid AI response')
+      }
 
       setChatMessages((prev) => [
         ...prev,
         {
           sender: 'ai',
-          text: responses[Math.floor(Math.random() * responses.length)],
+          text: formatAiMessage(replyText, data.suggestions),
         },
       ])
-    }, 1000)
-
-    setInputMessage('')
+    } catch (error) {
+      console.error('Failed to send AI chat message:', error)
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          sender: 'ai',
+          text: "I'm having trouble responding right now. Please try again in a moment.",
+        },
+      ])
+    } finally {
+      setIsChatLoading(false)
+    }
   }
 
   return (
@@ -291,8 +352,8 @@ export default function Main() {
               <Sparkles className="h-6 w-6 text-green-600" />
               AI Assistant
             </h2>
-            <p className="mt-3 max-w-[16ch] text-lg leading-snug text-slate-500">
-              Ask me anything about meal planning
+            <p className="mt-3 max-w-[24ch] text-lg leading-snug text-slate-500">
+              Ask for easy, hard, vegetarian, servings-based, quick, or fridge-based recipes
             </p>
           </div>
 
@@ -309,33 +370,64 @@ export default function Main() {
                       : 'bg-slate-100 text-slate-800'
                   }`}
                 >
-                  <p className="text-base leading-[1.45]">{message.text}</p>
+                  <p className="whitespace-pre-line text-base leading-[1.45]">{message.text}</p>
                 </div>
               </div>
             ))}
+
+            {isChatLoading && (
+              <div className="flex justify-start">
+                <div className="max-w-[82%] rounded-[1.6rem] bg-slate-100 px-6 py-5 text-slate-800">
+                  <p className="text-base leading-[1.45]">Thinking...</p>
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="mt-8 flex items-center gap-4">
-            <input
-              type="text"
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleSendMessage()
+          <div className="mt-8 space-y-4">
+            <div className="flex flex-wrap gap-3">
+              {quickPrompts.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  onClick={() => setInputMessage(prompt)}
+                  disabled={isChatLoading}
+                  className="rounded-full border border-base-300 bg-base-100 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-green-600 hover:text-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-end gap-4">
+              <textarea
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                disabled={isChatLoading || !userId}
+                rows={2}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey && !isChatLoading) {
+                    e.preventDefault()
+                    handleSendMessage()
+                  }
+                }}
+                placeholder={
+                  isChatLoading
+                    ? 'Thinking...'
+                    : 'Ask for an easy, hard, vegetarian, servings-based, quick, or fridge-based recipe'
                 }
-              }}
-              placeholder="Type your message..."
-              className="h-16 flex-1 rounded-[1.35rem] border-2 border-base-300 bg-base-100 px-6 text-base text-base-content outline-none transition placeholder:text-slate-400 focus:border-green-600"
-            />
-            <button
-              type="button"
-              onClick={handleSendMessage}
-              className="flex h-16 w-16 items-center justify-center rounded-[1.35rem] bg-green-600 text-white transition hover:bg-green-700"
-              aria-label="Send message"
-            >
-              <Send className="h-7 w-7" />
-            </button>
+                className="min-h-16 flex-1 resize-none rounded-[1.35rem] border-2 border-base-300 bg-base-100 px-6 py-4 text-base text-base-content outline-none transition placeholder:text-slate-400 focus:border-green-600 disabled:cursor-not-allowed disabled:bg-base-200/70"
+              />
+              <button
+                type="button"
+                onClick={handleSendMessage}
+                disabled={isChatLoading || !userId}
+                className="flex h-16 w-16 items-center justify-center rounded-[1.35rem] bg-green-600 text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-green-300"
+                aria-label="Send message"
+              >
+                <Send className="h-7 w-7" />
+              </button>
+            </div>
           </div>
         </article>
       </section>

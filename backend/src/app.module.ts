@@ -7,6 +7,7 @@ import { UsersModule } from './users/users.module';
 import { RecipesModule } from './recipes/recipes.module';
 import { MetroModule } from './metro/metro.module';
 import { MealPlansModule } from './meal-plans/meal-plans.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { MealPlansModule } from './meal-plans/meal-plans.module';
     RecipesModule,
     MetroModule,
     MealPlansModule,
+    AiModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -72,8 +72,8 @@ export default function ProfileEdit() {
         email: profile.email,
         dietaryPreferences: profile.dietaryPreferences,
         sex: profile.sex,
-        heightCm: profile.heightCm ? parseInt(profile.heightCm.toString()) : null,
-        weightKg: profile.weightKg ? parseInt(profile.weightKg.toString()) : null,
+        heightCm: profile.heightCm ? Number.parseInt(profile.heightCm.toString()) : null,
+        weightKg: profile.weightKg ? Number.parseInt(profile.weightKg.toString()) : null,
         allergies: typeof profile.allergies === 'string'
           ? profile.allergies.split(',').map(s => s.trim()).filter(Boolean)
           : profile.allergies
@@ -132,7 +132,7 @@ export default function ProfileEdit() {
                   placeholder="180"
                   className="input input-bordered w-full bg-base-100" 
                   value={profile.heightCm || ''}
-                  onChange={(e) => setProfile({...profile, heightCm: e.target.value ? parseInt(e.target.value) : 0})}
+                  onChange={(e) => setProfile({...profile, heightCm: e.target.value ? Number.parseInt(e.target.value) : 0})}
                 />
               </div>
 
@@ -143,7 +143,7 @@ export default function ProfileEdit() {
                   placeholder="75"
                   className="input input-bordered w-full bg-base-100" 
                   value={profile.weightKg || ''}
-                  onChange={(e) => setProfile({...profile, weightKg: e.target.value ? parseInt(e.target.value) : 0})}
+                  onChange={(e) => setProfile({...profile, weightKg: e.target.value ? Number.parseInt(e.target.value) : 0})}
                 />
               </div>
             </div>

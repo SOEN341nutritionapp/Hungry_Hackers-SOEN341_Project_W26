@@ -36,6 +36,21 @@ type IngredientLike = {
   name: string;
 };
 
+type ReplyRequestDetails = {
+  normalizedMessage: string;
+  requestedTag: string | null;
+  requestedServings: number | null;
+  requestedDifficulty: string | null;
+  suggestionCount: number;
+  hasSuggestions: boolean;
+};
+
+type RankedRecipeSuggestion = {
+  recipe: RecipeSummary;
+  score: number;
+  totalMinutes: number;
+};
+
 @Injectable()
 export class AiService {
   constructor(private readonly prisma: PrismaService) {}
@@ -174,79 +189,179 @@ export class AiService {
     fridgeItems: FridgeSummary[],
     suggestions: AiSuggestion[],
   ): string {
+    const details = this.getReplyRequestDetails(message, recipes, suggestions);
+    const matchingReply = this.findMatchingReply(details, fridgeItems);
+
+    return matchingReply ?? this.buildRecipeCountReply(recipes.length);
+  }
+
+  private getReplyRequestDetails(
+    message: string,
+    recipes: RecipeSummary[],
+    suggestions: AiSuggestion[],
+  ): ReplyRequestDetails {
     const normalizedMessage = message.toLowerCase();
-    const requestedTag = this.findRequestedDietaryTag(normalizedMessage, recipes);
-    const requestedServings = this.extractRequestedServings(normalizedMessage);
-    const requestedDifficulty = this.findRequestedDifficulty(normalizedMessage);
+    const suggestionCount = suggestions.length;
 
-    if (this.isTenMinuteRequest(normalizedMessage)) {
-      if (suggestions.length) {
-        return suggestions.length === 1
-          ? 'Here is a quick option that should fit a 10-minute style meal or get you close with minimal prep.'
-          : 'Here are a couple of quick options that should fit a 10-minute style meal or get you close with minimal prep.';
-      }
+    return {
+      normalizedMessage,
+      requestedTag: this.findRequestedDietaryTag(normalizedMessage, recipes),
+      requestedServings: this.extractRequestedServings(normalizedMessage),
+      requestedDifficulty: this.findRequestedDifficulty(normalizedMessage),
+      suggestionCount,
+      hasSuggestions: suggestionCount > 0,
+    };
+  }
 
+  private findMatchingReply(
+    details: ReplyRequestDetails,
+    fridgeItems: FridgeSummary[],
+  ): string | null {
+    const replyOptions = [
+      this.buildTenMinuteReply(details),
+      this.buildEasyRecipeReply(details),
+      this.buildFridgeReply(details, fridgeItems),
+      this.buildDifficultyReply(details),
+      this.buildServingsReply(details),
+      this.buildDietaryTagReply(details),
+      this.buildGeneralSuggestionReply(details),
+    ];
+
+    return replyOptions.find((reply): reply is string => reply !== null) ?? null;
+  }
+
+  private buildTenMinuteReply(details: ReplyRequestDetails): string | null {
+    if (!this.isTenMinuteRequest(details.normalizedMessage)) {
+      return null;
+    }
+
+    if (!details.hasSuggestions) {
       return 'I could not find a strong 10-minute match in your saved recipes yet. Try asking for another quick recipe and I will keep looking through your saved collection.';
     }
 
-    if (this.isEasyRecipeRequest(normalizedMessage)) {
-      if (suggestions.length) {
-        return suggestions.length === 1
-          ? 'Here is an easy recipe idea based on your saved recipes.'
-          : 'Here are a couple of easy recipe ideas based on your saved recipes.';
-      }
+    return this.pickReplyBySuggestionCount(
+      details.suggestionCount,
+      'Here is a quick option that should fit a 10-minute style meal or get you close with minimal prep.',
+      'Here are a couple of quick options that should fit a 10-minute style meal or get you close with minimal prep.',
+    );
+  }
 
+  private buildEasyRecipeReply(details: ReplyRequestDetails): string | null {
+    if (!this.isEasyRecipeRequest(details.normalizedMessage)) {
+      return null;
+    }
+
+    if (!details.hasSuggestions) {
       return 'I do not see any easy matches yet. Ask for a quick recipe or a recipe based on your fridge ingredients and I will use your saved collection.';
     }
 
-    if (this.isFridgeRequest(normalizedMessage)) {
-      const fridgePreview = fridgeItems
-        .slice(0, 6)
-        .map((item) => item.name)
-        .join(', ');
+    return this.pickReplyBySuggestionCount(
+      details.suggestionCount,
+      'Here is an easy recipe idea based on your saved recipes.',
+      'Here are a couple of easy recipe ideas based on your saved recipes.',
+    );
+  }
 
-      if (suggestions.length) {
-        return fridgePreview
-          ? `I checked your fridge items like ${fridgePreview} and matched them to your saved recipes.`
-          : 'I looked for recipes that can work with your available ingredients.';
-      }
-
-      if (fridgePreview) {
-        return `I found these fridge items: ${fridgePreview}. I do not have a close saved-recipe match yet, but I can still recommend an easy or quick recipe from your saved collection.`;
-      }
-
-      return 'Your fridge list looks empty right now, so I could not match ingredients yet. Ask for an easy recipe or a quick recipe from your saved collection.';
+  private buildFridgeReply(
+    details: ReplyRequestDetails,
+    fridgeItems: FridgeSummary[],
+  ): string | null {
+    if (!this.isFridgeRequest(details.normalizedMessage)) {
+      return null;
     }
 
-    if (requestedDifficulty && suggestions.length) {
-      return suggestions.length === 1
-        ? `Here is a ${requestedDifficulty.toLowerCase()} recipe from your saved collection.`
-        : `Here are ${requestedDifficulty.toLowerCase()} recipe suggestions from your saved collection.`;
+    const fridgePreview = this.buildFridgePreview(fridgeItems);
+
+    if (details.hasSuggestions) {
+      return fridgePreview
+        ? `I checked your fridge items like ${fridgePreview} and matched them to your saved recipes.`
+        : 'I looked for recipes that can work with your available ingredients.';
     }
 
-    if (requestedServings !== null && suggestions.length) {
-      return suggestions.length === 1
-        ? `Here is a saved recipe that matches ${requestedServings} servings.`
-        : `Here are saved recipes that match ${requestedServings} servings.`;
+    if (fridgePreview) {
+      return `I found these fridge items: ${fridgePreview}. I do not have a close saved-recipe match yet, but I can still recommend an easy or quick recipe from your saved collection.`;
     }
 
-    if (requestedTag && suggestions.length) {
-      return suggestions.length === 1
-        ? `Here is a ${requestedTag.toLowerCase()} recipe from your saved collection.`
-        : `Here are ${requestedTag.toLowerCase()} recipe suggestions from your saved collection.`;
+    return 'Your fridge list looks empty right now, so I could not match ingredients yet. Ask for an easy recipe or a quick recipe from your saved collection.';
+  }
+
+  private buildDifficultyReply(details: ReplyRequestDetails): string | null {
+    if (!details.requestedDifficulty || !details.hasSuggestions) {
+      return null;
     }
 
-    if (suggestions.length) {
-      return suggestions.length === 1
-        ? 'Here is a recipe idea from your saved collection that fits your message.'
-        : 'Here are a couple of recipe ideas from your saved collection that fit your message.';
+    const difficulty = details.requestedDifficulty.toLowerCase();
+
+    return this.pickReplyBySuggestionCount(
+      details.suggestionCount,
+      `Here is a ${difficulty} recipe from your saved collection.`,
+      `Here are ${difficulty} recipe suggestions from your saved collection.`,
+    );
+  }
+
+  private buildServingsReply(details: ReplyRequestDetails): string | null {
+    if (details.requestedServings === null || !details.hasSuggestions) {
+      return null;
     }
 
-    if (recipes.length) {
-      return `I found ${recipes.length} saved recipes in your account. Ask for an easy, hard, vegetarian, servings-based, quick, or fridge-based recipe and I can narrow them down.`;
+    return this.pickReplyBySuggestionCount(
+      details.suggestionCount,
+      `Here is a saved recipe that matches ${details.requestedServings} servings.`,
+      `Here are saved recipes that match ${details.requestedServings} servings.`,
+    );
+  }
+
+  private buildDietaryTagReply(details: ReplyRequestDetails): string | null {
+    if (!details.requestedTag || !details.hasSuggestions) {
+      return null;
+    }
+
+    const dietaryTag = details.requestedTag.toLowerCase();
+
+    return this.pickReplyBySuggestionCount(
+      details.suggestionCount,
+      `Here is a ${dietaryTag} recipe from your saved collection.`,
+      `Here are ${dietaryTag} recipe suggestions from your saved collection.`,
+    );
+  }
+
+  private buildGeneralSuggestionReply(
+    details: ReplyRequestDetails,
+  ): string | null {
+    if (!details.hasSuggestions) {
+      return null;
+    }
+
+    return this.pickReplyBySuggestionCount(
+      details.suggestionCount,
+      'Here is a recipe idea from your saved collection that fits your message.',
+      'Here are a couple of recipe ideas from your saved collection that fit your message.',
+    );
+  }
+
+  private buildRecipeCountReply(recipeCount: number): string {
+    if (recipeCount) {
+      return `I found ${recipeCount} saved recipes in your account. Ask for an easy, hard, vegetarian, servings-based, quick, or fridge-based recipe and I can narrow them down.`;
     }
 
     return 'I am ready to help with recipe ideas. Ask for an easy, hard, vegetarian, servings-based, quick, or fridge-based recipe.';
+  }
+
+  private buildFridgePreview(fridgeItems: FridgeSummary[]): string {
+    return fridgeItems
+      .slice(0, 6)
+      .map((item) => item.name)
+      .join(', ');
+  }
+
+  private pickReplyBySuggestionCount(
+    suggestionCount: number,
+    singleSuggestionReply: string,
+    multipleSuggestionsReply: string,
+  ): string {
+    return suggestionCount === 1
+      ? singleSuggestionReply
+      : multipleSuggestionsReply;
   }
 
   private buildSuggestions(
@@ -342,27 +457,17 @@ export class AiService {
           this.countIngredientMatches(recipe.ingredients, fridgeTokens) * 2;
       }
 
-      if (score === 0) {
-        if (this.isEasyRecipeRequest(normalizedMessage) && totalMinutes <= 25) {
-          score = 2;
-        } else if (
-          this.isTenMinuteRequest(normalizedMessage) &&
-          totalMinutes <= 20
-        ) {
-          score = 2;
-        } else if (
-          requestedDifficulty &&
-          recipe.difficulty.toLowerCase().includes(requestedDifficulty.toLowerCase())
-        ) {
-          score = 2;
-        } else if (
-          requestedTag &&
-          recipe.dietaryTags.some((tag) =>
-            tag.toLowerCase().includes(requestedTag.toLowerCase()),
-          )
-        ) {
-          score = 2;
-        }
+      if (
+        score === 0 &&
+        this.shouldUseFallbackScore(
+          normalizedMessage,
+          recipe,
+          totalMinutes,
+          requestedDifficulty,
+          requestedTag,
+        )
+      ) {
+        score = 2;
       }
 
       return {
@@ -372,34 +477,11 @@ export class AiService {
       };
     });
 
-    const positiveRanked = ranked
-      .filter((entry) => entry.score > 0)
-      .sort((a, b) => {
-        if (b.score !== a.score) {
-          return b.score - a.score;
-        }
-
-        return a.totalMinutes - b.totalMinutes;
-      });
+    const positiveRanked = ranked.filter((entry) => entry.score > 0);
+    positiveRanked.sort((a, b) => this.comparePositiveRankedEntries(a, b));
 
     const fallbackRanked = allowFallbackRecommendations
-      ? ranked
-          .sort((a, b) => {
-            const difficultyComparison =
-              Number(a.recipe.difficulty.toLowerCase().includes('easy')) -
-              Number(b.recipe.difficulty.toLowerCase().includes('easy'));
-
-            if (difficultyComparison !== 0) {
-              return difficultyComparison * -1;
-            }
-
-            return a.totalMinutes - b.totalMinutes;
-          })
-          .filter(
-            (entry, index, array) =>
-              array.findIndex((item) => item.recipe.id === entry.recipe.id) ===
-              index,
-          )
+      ? this.buildFallbackRankedEntries(ranked)
       : [];
 
     const selectedRanked = (
@@ -418,6 +500,108 @@ export class AiService {
       source: 'Saved recipe',
       url: `/recipes/${userId}/${recipe.id}`,
     }));
+  }
+
+  private shouldUseFallbackScore(
+    normalizedMessage: string,
+    recipe: RecipeSummary,
+    totalMinutes: number,
+    requestedDifficulty: string | null,
+    requestedTag: string | null,
+  ): boolean {
+    if (this.isEasyFallbackMatch(normalizedMessage, totalMinutes)) {
+      return true;
+    }
+
+    if (this.isTenMinuteFallbackMatch(normalizedMessage, totalMinutes)) {
+      return true;
+    }
+
+    if (this.matchesRequestedDifficulty(recipe, requestedDifficulty)) {
+      return true;
+    }
+
+    return this.matchesRequestedTag(recipe, requestedTag);
+  }
+
+  private isEasyFallbackMatch(
+    normalizedMessage: string,
+    totalMinutes: number,
+  ): boolean {
+    return this.isEasyRecipeRequest(normalizedMessage) && totalMinutes <= 25;
+  }
+
+  private isTenMinuteFallbackMatch(
+    normalizedMessage: string,
+    totalMinutes: number,
+  ): boolean {
+    return this.isTenMinuteRequest(normalizedMessage) && totalMinutes <= 20;
+  }
+
+  private matchesRequestedDifficulty(
+    recipe: RecipeSummary,
+    requestedDifficulty: string | null,
+  ): boolean {
+    if (!requestedDifficulty) {
+      return false;
+    }
+
+    return recipe.difficulty
+      .toLowerCase()
+      .includes(requestedDifficulty.toLowerCase());
+  }
+
+  private matchesRequestedTag(
+    recipe: RecipeSummary,
+    requestedTag: string | null,
+  ): boolean {
+    if (!requestedTag) {
+      return false;
+    }
+
+    const normalizedTag = requestedTag.toLowerCase();
+
+    return recipe.dietaryTags.some((tag) =>
+      tag.toLowerCase().includes(normalizedTag),
+    );
+  }
+
+  private comparePositiveRankedEntries(
+    a: RankedRecipeSuggestion,
+    b: RankedRecipeSuggestion,
+  ): number {
+    if (b.score !== a.score) {
+      return b.score - a.score;
+    }
+
+    return a.totalMinutes - b.totalMinutes;
+  }
+
+  private buildFallbackRankedEntries(
+    ranked: RankedRecipeSuggestion[],
+  ): RankedRecipeSuggestion[] {
+    const fallbackRanked = [...ranked];
+    fallbackRanked.sort((a, b) => this.compareFallbackRankedEntries(a, b));
+
+    return fallbackRanked.filter(
+      (entry, index, array) =>
+        array.findIndex((item) => item.recipe.id === entry.recipe.id) === index,
+    );
+  }
+
+  private compareFallbackRankedEntries(
+    a: RankedRecipeSuggestion,
+    b: RankedRecipeSuggestion,
+  ): number {
+    const difficultyComparison =
+      Number(a.recipe.difficulty.toLowerCase().includes('easy')) -
+      Number(b.recipe.difficulty.toLowerCase().includes('easy'));
+
+    if (difficultyComparison !== 0) {
+      return difficultyComparison * -1;
+    }
+
+    return a.totalMinutes - b.totalMinutes;
   }
 
   private buildSuggestionReason(

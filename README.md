@@ -51,8 +51,9 @@ The project progressed through four sprints, evolving from basic authentication 
 * Ingredient restoration when meals are deleted
 
 ---
-
 ## 🧱 Project Structure
+
+```
 .
 ├── backend/
 │   ├── src/              # Application source code
@@ -78,7 +79,7 @@ The project progressed through four sprints, evolving from basic authentication 
 ├── extension/            # Chrome extension for Metro grocery sync
 ├── documentation/        # Sprint plans, meeting minutes, contribution logs
 └── README.md
-
+```
 ---
 
 ## 🛠️ Technology Stack
@@ -302,33 +303,6 @@ The Chrome extension scrapes the Metro grocery cart and syncs items directly to 
 ### Recipe Filtering
 Advanced filtering by dietary preferences, cooking time, difficulty level, and cost ensures users find recipes that match their needs.
 
----
-
-## 🚀 Sprint Evolution
-
-### Sprint 1 (Jan 24 - Feb 6)
-* User authentication system
-* Profile management
-* Database schema foundation
-
-### Sprint 2 (Feb 7 - Feb 20)
-* Recipe CRUD operations
-* Search and filtering
-* Chrome extension scaffolding
-
-### Sprint 3 (Feb 21 - Mar 10)
-* Weekly calendar interface
-* Meal planning functionality
-* Fridge inventory system
-* Metro extension integration
-
-### Sprint 4 (Mar 11 - Mar 25)
-* Code quality improvements (ESLint, static analysis)
-* Repository reorganization
-* Comprehensive testing (41 unit tests)
-* Final documentation and demo preparation
-
----
 
 ## 👥 Team — Hungry Hackers
 

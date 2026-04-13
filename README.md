@@ -21,7 +21,19 @@ The project progressed through four sprints, evolving from basic authentication 
 
 ---
 
-## ✨ Final Features
+## 👥 Team — Hungry Hackers
+
+| Name    | Student ID | GitHub ID        | Role                                      |
+|---------|-----------|------------------|-------------------------------------------|
+| Taras   | 40327546  | tarasbaranovskyy | Full-Stack & Metro Chrome Extension       |
+| Ishika  | 40188558  | ishikapatel1     | Full-Stack (Search, Filtering, Testing)   |
+| Nigel   | 40281248  | nigelkyle21      | Full-Stack (Recipe & Meal Plan CRUDs)     |
+| Dylan   | 40263297  | dylanp3802       | Full-Stack (Recipe UI, Calendar Pages)    |
+| Mouawad | 40201957  | mjbch24          | Documentation, Planning & Testing         |
+
+---
+
+##  Features
 
 ### 🔐 User Authentication (Sprint 1)
 * Secure registration and login
@@ -277,42 +289,10 @@ npm test
 
 **Total: 41 unit tests** ✅
 
-### E2E Tests
-Integration tests are in `backend/e2e/`:
-
-```bash
-npm run test:e2e
-```
 
 ### CI/CD
 All tests run automatically on GitHub Actions for every push and pull request.
 
----
-
-## 🎨 Key Features Showcase
-
-### Drag-and-Drop Meal Planning
-Users can drag recipes from their library and drop them into any day/meal slot on the weekly calendar.
-
-### Smart Inventory Management
-When a meal is added to the calendar, ingredients are automatically deducted from the fridge. When deleted, ingredients are restored.
-
-### Metro Integration
-The Chrome extension scrapes the Metro grocery cart and syncs items directly to MealMajor's fridge inventory.
-
-### Recipe Filtering
-Advanced filtering by dietary preferences, cooking time, difficulty level, and cost ensures users find recipes that match their needs.
-
-
-## 👥 Team — Hungry Hackers
-
-| Name    | Role                                      |
-|---------|-------------------------------------------|
-| Taras   | Full-Stack & Metro Chrome Extension       |
-| Ishika  | Full-Stack (Search, Filtering, Testing)   |
-| Nigel   | Full-Stack (Recipe & Meal Plan APIs)      |
-| Dylan   | Full-Stack (Recipe UI, Calendar Pages)    |
-| Mouawad | Documentation, Planning & Testing         |
 
 ---
 

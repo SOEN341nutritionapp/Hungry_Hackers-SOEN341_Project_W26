@@ -1,7 +1,7 @@
 // src/pages/ProfileEdit.tsx
 import { useState, useEffect } from 'react' 
 import { useNavigate } from 'react-router-dom'
-import * as auth from '../authClient'
+import * as auth from '../utils/authClient'
 import { X } from 'lucide-react'
 
 

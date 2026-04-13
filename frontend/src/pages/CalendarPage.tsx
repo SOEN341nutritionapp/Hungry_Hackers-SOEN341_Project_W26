@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
-import { useAuth } from '../AuthContext'
+import { useAuth } from '../contexts/AuthContext'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import CalendarGrid from '../components/CalendarGrid'
 import RecipeSidebar from '../components/RecipeSidebar';
-import { apiGet } from '../api'
+import { apiGet } from '../utils/api'
 
 /*
     This page displays a weekly meal plammer where users can view and manage

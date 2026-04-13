@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../AuthContext'
-import * as auth from '../authClient'
-import { getFridge } from '../fridgeClient'
+import { useAuth } from '../contexts/AuthContext'
+import * as auth from '../utils/authClient'
+import { getFridge } from '../utils/fridgeClient'
 
 interface UserProfile {
   name: string

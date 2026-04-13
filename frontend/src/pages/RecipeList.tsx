@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useAuth } from '../AuthContext'
+import { useAuth } from '../contexts/AuthContext'
 import { Plus, Edit2, Trash2, Clock, ChefHat, Search, SlidersHorizontal, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 

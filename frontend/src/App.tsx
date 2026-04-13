@@ -1,5 +1,5 @@
 import { Routes, Route } from 'react-router-dom'
-import RequireAuth from './RequireAuth'
+import RequireAuth from './components/RequireAuth'
 import Main from './pages/Main'
 import SignIn from './pages/SignIn'
 import SignUp from './pages/SignUp'

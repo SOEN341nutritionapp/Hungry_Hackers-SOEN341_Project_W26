@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, X } from 'lucide-react'
 import AddMealModal from './AddMealModal'
-import { useAuth } from '../AuthContext'
-import { apiDelete, apiPost } from '../api'
+import { useAuth } from '../contexts/AuthContext'
+import { apiDelete, apiPost } from '../utils/api'
 
 interface CalendarSlotProps {
     date: Date

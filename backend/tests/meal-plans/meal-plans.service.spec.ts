@@ -4,8 +4,8 @@ import {
   ConflictException,
   Logger,
 } from '@nestjs/common';
-import { MealPlansService } from './meal-plans.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { MealPlansService } from '../../src/meal-plans/meal-plans.service';
+import { PrismaService } from '../../src/prisma/prisma.service';
 
 // ============================================================================
 // MEAL PLANS SERVICE UNIT TESTS

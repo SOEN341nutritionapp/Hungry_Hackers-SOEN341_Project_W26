@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import * as auth from './authClient'
+import * as auth from '../utils/authClient'
 
 type AuthCtx = {
   accessToken: string | null

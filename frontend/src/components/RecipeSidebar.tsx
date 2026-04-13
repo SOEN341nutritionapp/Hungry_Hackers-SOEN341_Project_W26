@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { apiGet } from '../api'; 
+import { apiGet } from '../utils/api'; 
 import RecipeCard from './RecipeCard';
 
 interface RecipeSidebarProps {

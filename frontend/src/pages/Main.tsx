@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Search, CalendarDays, ChefHat, Sparkles, Send } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../AuthContext'
+import { useAuth } from '../contexts/AuthContext'
 
 interface Recipe {
   id: string

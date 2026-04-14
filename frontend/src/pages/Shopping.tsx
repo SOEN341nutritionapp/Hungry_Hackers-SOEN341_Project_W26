@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useAuth } from '../AuthContext'
+import { useAuth } from '../contexts/AuthContext'
 import { Minus, Trash2 } from 'lucide-react'
 import {
   deleteFridgeItem,
@@ -8,7 +8,7 @@ import {
   updateFridgeItem,
   type FridgeItem,
   type FridgeResponse,
-} from '../fridgeClient'
+} from '../utils/fridgeClient'
 
 const SHELF_LABELS = ['Upper Shelf', 'Fresh Shelf', 'Dinner Shelf', 'Door Rack']
 

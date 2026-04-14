@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { RecipeService } from './recipes.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { RecipeService } from '../../src/recipes/recipes.service';
+import { PrismaService } from '../../src/prisma/prisma.service';
 import { NotFoundException,ForbiddenException, BadRequestException, } from '@nestjs/common';
 
 // ============================================================================

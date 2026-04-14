@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
-import { useAuth } from '../AuthContext'
-import { apiGet, apiPost } from '../api'
+import { useAuth } from '../contexts/AuthContext'
+import { apiGet, apiPost } from '../utils/api'
 
 interface AddMealModalProps {
     isOpen: boolean

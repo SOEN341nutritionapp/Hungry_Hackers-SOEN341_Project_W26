@@ -4,14 +4,46 @@ import {
   ConflictException,
   Logger,
 } from '@nestjs/common';
-import { MealPlansService } from './meal-plans.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { MealPlansService } from '../../src/meal-plans/meal-plans.service';
+import { PrismaService } from '../../src/prisma/prisma.service';
 
 // ============================================================================
 // MEAL PLANS SERVICE UNIT TESTS
 // ============================================================================
 // Tests the MealPlansService business logic for Sprint 3 (Weekly Calendar)
 // ============================================================================
+
+// ============================================================================
+// HELPER FUNCTIONS - reduce duplicated test setup
+// ============================================================================
+
+const createDto = (overrides = {}) => ({
+  recipeId: 'r1',
+  date: '2026-03-03',
+  mealType: 'lunch',
+  ...overrides,
+});
+
+const createTx = () => ({
+  recipe: {
+    findUnique: jest.fn(),
+  },
+  mealPlan: {
+    findFirst: jest.fn(),
+    create: jest.fn(),
+    findUnique: jest.fn(),
+    delete: jest.fn(),
+  },
+  fridgeItem: {
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+    update: jest.fn(),
+  },
+  mealPlanConsumption: {
+    createMany: jest.fn(),
+  },
+});
+
 describe('MealPlansService', () => {
   let service: MealPlansService;
 
@@ -21,6 +53,10 @@ describe('MealPlansService', () => {
       findMany: jest.Mock;
     };
     $transaction: jest.Mock;
+  };
+
+  const mockTransaction = (tx: any) => {
+    prisma.$transaction.mockImplementation(async (callback) => callback(tx));
   };
 
   // ========================================================================
@@ -136,11 +172,7 @@ describe('MealPlansService', () => {
     // ----------------------------------------------------------------------
     it('should create and return a meal plan when recipe exists and is not already planned for the week', async () => {
       // ARRANGE
-      const dto = {
-        recipeId: 'r1',
-        date: '2026-03-03',
-        mealType: 'lunch',
-      };
+      const dto = createDto();
 
       const recipe = {
         id: 'r1',
@@ -158,23 +190,13 @@ describe('MealPlansService', () => {
         recipe,
       };
 
-      const tx = {
-        recipe: {
-          findUnique: jest.fn().mockResolvedValue(recipe),
-        },
-        mealPlan: {
-          findFirst: jest.fn().mockResolvedValue(null),
-          create: jest.fn().mockResolvedValue(createdMealPlan),
-        },
-        fridgeItem: {
-          findMany: jest.fn().mockResolvedValue([]),
-        },
-        mealPlanConsumption: {
-          createMany: jest.fn(),
-        },
-      };
+      const tx = createTx();
+      tx.recipe.findUnique.mockResolvedValue(recipe);
+      tx.mealPlan.findFirst.mockResolvedValue(null);
+      tx.mealPlan.create.mockResolvedValue(createdMealPlan);
+      tx.fridgeItem.findMany.mockResolvedValue([]);
 
-      prisma.$transaction.mockImplementation(async (callback) => callback(tx));
+      mockTransaction(tx);
 
       // ACT
       const result = await service.create('u1', dto as any);
@@ -213,23 +235,12 @@ describe('MealPlansService', () => {
     // ----------------------------------------------------------------------
     it('should throw NotFoundException when the recipe does not exist', async () => {
       // ARRANGE
-      const dto = {
-        recipeId: 'r1',
-        date: '2026-03-03',
-        mealType: 'dinner',
-      };
+      const dto = createDto({ mealType: 'dinner' });
 
-      const tx = {
-        recipe: {
-          findUnique: jest.fn().mockResolvedValue(null),
-        },
-        mealPlan: {
-          findFirst: jest.fn(),
-          create: jest.fn(),
-        },
-      };
+      const tx = createTx();
+      tx.recipe.findUnique.mockResolvedValue(null);
 
-      prisma.$transaction.mockImplementation(async (callback) => callback(tx));
+      mockTransaction(tx);
 
       // ACT & ASSERT
       await expect(service.create('u1', dto as any)).rejects.toThrow(
@@ -242,27 +253,16 @@ describe('MealPlansService', () => {
     // ----------------------------------------------------------------------
     it('should throw NotFoundException when the recipe belongs to another user', async () => {
       // ARRANGE
-      const dto = {
-        recipeId: 'r1',
-        date: '2026-03-03',
-        mealType: 'breakfast',
-      };
+      const dto = createDto({ mealType: 'breakfast' });
 
-      const tx = {
-        recipe: {
-          findUnique: jest.fn().mockResolvedValue({
-            id: 'r1',
-            userId: 'u2', // Different user
-            ingredients: [],
-          }),
-        },
-        mealPlan: {
-          findFirst: jest.fn(),
-          create: jest.fn(),
-        },
-      };
+      const tx = createTx();
+      tx.recipe.findUnique.mockResolvedValue({
+        id: 'r1',
+        userId: 'u2', // Different user
+        ingredients: [],
+      });
 
-      prisma.$transaction.mockImplementation(async (callback) => callback(tx));
+      mockTransaction(tx);
 
       // ACT & ASSERT
       await expect(service.create('u1', dto as any)).rejects.toThrow(
@@ -275,31 +275,21 @@ describe('MealPlansService', () => {
     // ----------------------------------------------------------------------
     it('should throw ConflictException when the recipe is already planned for the same week', async () => {
       // ARRANGE
-      const dto = {
+      const dto = createDto();
+
+      const tx = createTx();
+      tx.recipe.findUnique.mockResolvedValue({
+        id: 'r1',
+        userId: 'u1',
+        ingredients: [],
+      });
+      tx.mealPlan.findFirst.mockResolvedValue({
+        id: 'mExisting',
+        userId: 'u1',
         recipeId: 'r1',
-        date: '2026-03-03',
-        mealType: 'lunch',
-      };
+      });
 
-      const tx = {
-        recipe: {
-          findUnique: jest.fn().mockResolvedValue({
-            id: 'r1',
-            userId: 'u1',
-            ingredients: [],
-          }),
-        },
-        mealPlan: {
-          findFirst: jest.fn().mockResolvedValue({
-            id: 'mExisting',
-            userId: 'u1',
-            recipeId: 'r1',
-          }),
-          create: jest.fn(),
-        },
-      };
-
-      prisma.$transaction.mockImplementation(async (callback) => callback(tx));
+      mockTransaction(tx);
 
       // ACT & ASSERT
       await expect(service.create('u1', dto as any)).rejects.toThrow(
@@ -312,11 +302,10 @@ describe('MealPlansService', () => {
     // ----------------------------------------------------------------------
     it('should compute the correct week start date when creating a meal plan', async () => {
       // ARRANGE
-      const dto = {
-        recipeId: 'r1',
+      const dto = createDto({
         date: '2026-03-05', // Thursday
         mealType: 'dinner',
-      };
+      });
 
       const recipe = {
         id: 'r1',
@@ -324,31 +313,21 @@ describe('MealPlansService', () => {
         ingredients: [],
       };
 
-      const tx = {
-        recipe: {
-          findUnique: jest.fn().mockResolvedValue(recipe),
-        },
-        mealPlan: {
-          findFirst: jest.fn().mockResolvedValue(null),
-          create: jest.fn().mockResolvedValue({
-            id: 'm1',
-            userId: 'u1',
-            recipeId: 'r1',
-            date: new Date(Date.UTC(2026, 2, 5, 0, 0, 0, 0)),
-            mealType: 'dinner',
-            weekStart: new Date(Date.UTC(2026, 2, 2, 0, 0, 0, 0)),
-            recipe,
-          }),
-        },
-        fridgeItem: {
-          findMany: jest.fn().mockResolvedValue([]),
-        },
-        mealPlanConsumption: {
-          createMany: jest.fn(),
-        },
-      };
+      const tx = createTx();
+      tx.recipe.findUnique.mockResolvedValue(recipe);
+      tx.mealPlan.findFirst.mockResolvedValue(null);
+      tx.mealPlan.create.mockResolvedValue({
+        id: 'm1',
+        userId: 'u1',
+        recipeId: 'r1',
+        date: new Date(Date.UTC(2026, 2, 5, 0, 0, 0, 0)),
+        mealType: 'dinner',
+        weekStart: new Date(Date.UTC(2026, 2, 2, 0, 0, 0, 0)),
+        recipe,
+      });
+      tx.fridgeItem.findMany.mockResolvedValue([]);
 
-      prisma.$transaction.mockImplementation(async (callback) => callback(tx));
+      mockTransaction(tx);
 
       // ACT
       await service.create('u1', dto as any);
@@ -387,18 +366,11 @@ describe('MealPlansService', () => {
         consumptions: [],
       };
 
-      const tx = {
-        mealPlan: {
-          findUnique: jest.fn().mockResolvedValue(mealPlan),
-          delete: jest.fn().mockResolvedValue({ id: 'm1' }),
-        },
-        fridgeItem: {
-          findUnique: jest.fn(),
-          update: jest.fn(),
-        },
-      };
+      const tx = createTx();
+      tx.mealPlan.findUnique.mockResolvedValue(mealPlan);
+      tx.mealPlan.delete.mockResolvedValue({ id: 'm1' });
 
-      prisma.$transaction.mockImplementation(async (callback) => callback(tx));
+      mockTransaction(tx);
 
       // ACT
       const result = await service.remove('u1', 'm1');
@@ -423,18 +395,10 @@ describe('MealPlansService', () => {
     // ----------------------------------------------------------------------
     it('should throw NotFoundException when the meal plan does not exist', async () => {
       // ARRANGE
-      const tx = {
-        mealPlan: {
-          findUnique: jest.fn().mockResolvedValue(null),
-          delete: jest.fn(),
-        },
-        fridgeItem: {
-          findUnique: jest.fn(),
-          update: jest.fn(),
-        },
-      };
+      const tx = createTx();
+      tx.mealPlan.findUnique.mockResolvedValue(null);
 
-      prisma.$transaction.mockImplementation(async (callback) => callback(tx));
+      mockTransaction(tx);
 
       // ACT & ASSERT
       await expect(service.remove('u1', 'm1')).rejects.toThrow(
@@ -447,22 +411,14 @@ describe('MealPlansService', () => {
     // ----------------------------------------------------------------------
     it('should throw NotFoundException when the meal plan belongs to another user', async () => {
       // ARRANGE
-      const tx = {
-        mealPlan: {
-          findUnique: jest.fn().mockResolvedValue({
-            id: 'm1',
-            userId: 'u2', // Different user
-            consumptions: [],
-          }),
-          delete: jest.fn(),
-        },
-        fridgeItem: {
-          findUnique: jest.fn(),
-          update: jest.fn(),
-        },
-      };
+      const tx = createTx();
+      tx.mealPlan.findUnique.mockResolvedValue({
+        id: 'm1',
+        userId: 'u2', // Different user
+        consumptions: [],
+      });
 
-      prisma.$transaction.mockImplementation(async (callback) => callback(tx));
+      mockTransaction(tx);
 
       // ACT & ASSERT
       await expect(service.remove('u1', 'm1')).rejects.toThrow(

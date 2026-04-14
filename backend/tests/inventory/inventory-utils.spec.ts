@@ -2,7 +2,7 @@ import {
   convertToInventoryAmount,
   normalizeInventoryName,
   parseIngredientAmount,
-} from './inventory-utils'
+} from '../../src/inventory/inventory-utils';
 
 describe('inventory-utils', () => {
   it('normalizes names for fridge and recipe matching', () => {

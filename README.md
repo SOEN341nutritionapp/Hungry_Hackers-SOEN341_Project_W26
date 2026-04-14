@@ -2,9 +2,7 @@
 
 Hungry Hackers — SOEN 341 (Winter 2026)
 
-MealMajor is a full-stack web application that helps students manage day to day nutrition planning.
-
-In **Sprint 2**, the project expands beyond authentication to introduce **Recipe Management and Discovery**, enabling users to create, search, and filter recipes within the platform.
+MealMajor is a full-stack web application that helps students manage day-to-day nutrition planning with weekly meal calendars, recipe management, and smart grocery integration.
 
 ---
 
@@ -12,76 +10,93 @@ In **Sprint 2**, the project expands beyond authentication to introduce **Recipe
 
 MealMajor is a student-oriented nutrition platform designed to support:
 
-* Secure user accounts
+* Secure user accounts with JWT authentication
 * Personalized dietary preferences
-* Recipe creation and management
-* Advanced recipe filtering
+* Recipe creation, search, and filtering
+* Weekly meal planning with drag-and-drop calendar
+* Smart fridge inventory management
+* Metro grocery cart integration via Chrome extension
 
-Sprint 2 builds directly on the secure authentication foundation from Sprint 1 and introduces core functionality required for meal planning workflows in future sprints.
+The project progressed through four sprints, evolving from basic authentication to a complete meal planning ecosystem with grocery sync capabilities.
 
 ---
 
-## 🎯 Sprint 2 Scope
+## 👥 Team — Hungry Hackers
 
-The following features are fully implemented in this sprint:
+| Name    | Student ID | GitHub ID        | Role                                      |
+|---------|-----------|------------------|-------------------------------------------|
+| Taras   | 40327546  | tarasbaranovskyy | Full-Stack & Metro Chrome Extension       |
+| Ishika  | 40188558  | ishikapatel1     | Full-Stack (Search, Filtering, Testing)   |
+| Nigel   | 40281248  | nigelkyle21      | Full-Stack (Recipe & Meal Plan CRUDs)     |
+| Dylan   | 40263297  | dylanp3802       | Full-Stack (Recipe UI, Calendar Pages)    |
+| Mouawad | 40201957  | mjbch24          | Documentation, Planning & Testing         |
 
-### 🍳 Recipe Management
+---
 
-* Create recipes
-* Edit existing recipes
-* Delete recipes
-* Store detailed recipe attributes:
+##  Features
 
-  * Ingredients
-  * Preparation steps
-  * Preparation time
-  * Cook time
-  * Difficulty
-  * Cost
-  * Dietary tags
-  * Servings
+### 🔐 User Authentication (Sprint 1)
+* Secure registration and login
+* JWT token-based authentication
+* Password hashing with bcrypt
+* Profile management
 
-### 🔎 Search & Filtering
-
+### 🍳 Recipe Management (Sprint 2)
+* Create, edit, and delete recipes
+* Detailed recipe attributes (ingredients, steps, time, difficulty, cost, dietary tags, servings)
 * Search recipes by title
-* Filter recipes by:
+* Filter by time, difficulty, cost, dietary tags, and servings
 
-  * Time
-  * Difficulty
-  * Cost
-  * Dietary tag
-  * Servings
+### 📅 Weekly Meal Planning (Sprint 3)
+* Interactive weekly calendar view
+* Drag-and-drop recipe assignment to meal slots
+* Add meals via search modal
+* Delete meals with one click
+* Navigate between weeks
+* Automatic fridge inventory updates
 
-### 🔗 Chrome Extension Integration (Special Feature)
-
-* Chrome extension for Metro grocery platform
-* Scraping algorithm to extract cart item data
-* POST request to send scraped data to MealMajor backend
-
-This extension lays groundwork for future grocery tracking features.
+### 🛒 Smart Fridge & Grocery Integration (Sprint 3)
+* Fridge inventory tracking
+* Bi-directional sync: meal plans ↔ fridge inventory
+* Metro Chrome extension for grocery cart scraping
+* Automatic ingredient deduction when meals are planned
+* Ingredient restoration when meals are deleted
 
 ---
-
-## 🧱 Architecture
-
-The project remains structured as a monorepo:
+## 🧱 Project Structure
 
 ```
 .
-├── backend/        # NestJS API + Prisma + PostgreSQL
-├── frontend/       # React + Vite client
-├── chrome-extension/  # Metro scraping extension
-├── README.md
-├── sprint-plan.md
-└── Contribution-log.md
+├── backend/
+│   ├── src/              # Application source code
+│   │   ├── auth/         # Authentication module
+│   │   ├── users/        # User management
+│   │   ├── recipes/      # Recipe CRUD operations
+│   │   ├── meal-plans/   # Weekly meal planning
+│   │   ├── inventory/    # Fridge inventory management
+│   │   ├── metro/        # Metro grocery sync integration
+│   │   ├── ai/           # AI features
+│   │   └── prisma/       # Database client service
+│   ├── tests/            # Unit tests (mirrors src/ structure)
+│   ├── e2e/              # End-to-end integration tests
+│   └── prisma/           # Database schema and migrations
+├── frontend/
+│   ├── src/
+│   │   ├── pages/        # Application pages
+│   │   ├── components/   # Reusable UI components
+│   │   ├── utils/        # Utility functions (API client, auth, fridge)
+│   │   ├── contexts/     # React contexts (AuthContext)
+│   │   └── assets/       # Images and static assets
+│   └── public/           # Public static files
+├── extension/            # Chrome extension for Metro grocery sync
+├── documentation/        # Sprint plans, meeting minutes, contribution logs
+└── README.md
 ```
-
 ---
 
 ## 🛠️ Technology Stack
 
 ### Frontend
-
 * React 19
 * TypeScript
 * Vite
@@ -90,7 +105,6 @@ The project remains structured as a monorepo:
 * DaisyUI
 
 ### Backend
-
 * Node.js
 * NestJS
 * TypeScript
@@ -101,16 +115,18 @@ The project remains structured as a monorepo:
 * cookie-parser
 
 ### Extension
-
 * Chrome Extension API
-* DOM scraping logic
-* Fetch API for POST integration
+* DOM scraping for Metro grocery platform
+* Fetch API for backend integration
 
-### Tooling
-
-* ESLint
+### Testing & Quality
 * Jest (unit & e2e testing)
-* Docker Compose (PostgreSQL)
+* ESLint (static analysis)
+* GitHub Actions (CI/CD)
+
+### DevOps
+* Docker & Docker Compose (PostgreSQL)
+* Prisma migrations
 
 ---
 
@@ -123,9 +139,11 @@ Before running the project, ensure you have:
 * Docker & Docker Compose
 * Google Chrome (for extension testing)
 
-Environment variables remain the same as Sprint 1:
+### Environment Variables
 
-```
+Create a `.env` file in the `backend/` directory:
+
+```env
 PORT=3000
 JWT_SECRET=your-super-secret-key
 DATABASE_URL=postgresql://mealmajor:mealmajor@localhost:5433/mealmajor
@@ -137,9 +155,9 @@ DATABASE_URL=postgresql://mealmajor:mealmajor@localhost:5433/mealmajor
 
 ### Step 1 — Start Database
 
-From backend/:
+From `backend/`:
 
-```
+```bash
 npm install
 docker compose up -d
 npx prisma migrate deploy
@@ -147,7 +165,7 @@ npx prisma migrate deploy
 
 For development migrations:
 
-```
+```bash
 npx prisma migrate dev
 ```
 
@@ -155,96 +173,131 @@ npx prisma migrate dev
 
 ### Step 2 — Run Backend API
 
-```
+```bash
 cd backend
 npm run start:dev
 ```
 
-Backend runs at:
-
-```
-http://localhost:3000
-```
+Backend runs at: `http://localhost:3000`
 
 ---
 
 ### Step 3 — Run Frontend
 
-```
+```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-Frontend runs at:
-
-```
-http://localhost:5173
-```
+Frontend runs at: `http://localhost:5173`
 
 ---
 
-## 🔌 API Endpoints (Sprint 2 Additions)
+### Step 4 — Install Chrome Extension (Optional)
+
+1. Open Chrome and navigate to `chrome://extensions/`
+2. Enable "Developer mode"
+3. Click "Load unpacked"
+4. Select the `extension/` folder
+5. Navigate to Metro grocery site and add items to cart
+6. Click extension icon to sync with MealMajor
+
+---
+
+## 🔌 API Endpoints
+
+### Authentication (/auth)
+| Method | Endpoint         | Description           |
+|--------|------------------|-----------------------|
+| POST   | /auth/register   | Register new user     |
+| POST   | /auth/login      | Login user            |
+| POST   | /auth/refresh    | Refresh access token  |
+| POST   | /auth/logout     | Logout user           |
+
+### Users (/users)
+| Method | Endpoint      | Description          |
+|--------|---------------|----------------------|
+| GET    | /users/me     | Get current user     |
+| PATCH  | /users/me     | Update user profile  |
 
 ### Recipes (/recipes)
+| Method | Endpoint         | Description                              |
+|--------|------------------|------------------------------------------|
+| POST   | /recipes         | Create a new recipe                      |
+| GET    | /recipes         | Get all recipes (supports search/filter) |
+| GET    | /recipes/:id     | Get single recipe                        |
+| PATCH  | /recipes/:id     | Update recipe                            |
+| DELETE | /recipes/:id     | Delete recipe                            |
 
-| Method | Endpoint     | Description         |
-| ------ | ------------ | ------------------- |
-| POST   | /recipes     | Create a new recipe |
-| GET    | /recipes     | Get all recipes     |
-| GET    | /recipes/:id | Get single recipe   |
-| PATCH  | /recipes/:id | Update recipe       |
-| DELETE | /recipes/:id | Delete recipe       |
+### Meal Plans (/meal-plans)
+| Method | Endpoint              | Description                    |
+|--------|-----------------------|--------------------------------|
+| POST   | /meal-plans           | Add recipe to meal plan        |
+| GET    | /meal-plans           | Get meal plans for date range  |
+| DELETE | /meal-plans/:id       | Remove meal from plan          |
 
-### Filtering & Search
-
-| Method | Endpoint         | Description                                   |
-| ------ | ---------------- | --------------------------------------------- |
-| GET    | /recipes?search= | Search by title                               |
-| GET    | /recipes?filter= | Filter by difficulty, time, cost, dietary tag |
+### Fridge Inventory (/metro/fridge)
+| Method | Endpoint         | Description              |
+|--------|------------------|--------------------------|
+| GET    | /metro/fridge    | Get fridge inventory     |
+| POST   | /metro/sync      | Sync Metro cart to fridge|
+| PATCH  | /metro/fridge    | Update inventory item    |
+| DELETE | /metro/fridge/:id| Remove inventory item    |
 
 ---
 
 ## 📜 Development Scripts
 
 ### Frontend
-
-```
-npm run dev
-npm run build
-npm run lint
-npm run preview
+```bash
+npm run dev       # Start dev server
+npm run build     # Build for production
+npm run lint      # Run ESLint
+npm run preview   # Preview production build
 ```
 
 ### Backend
-
-```
-npm run start:dev
-npm run build
-npm run lint
-npm run test
-npm run test:e2e
+```bash
+npm run start:dev  # Start in watch mode
+npm run build      # Build for production
+npm run lint       # Run ESLint
+npm run test       # Run unit tests
+npm run test:e2e   # Run e2e tests
+npm run test:cov   # Run tests with coverage
 ```
 
 ---
 
-## 🚀 Improvements from Sprint 1
+## 🧪 Testing
 
-* Extended Prisma schema to include Recipe model
-* Implemented CRUD operations with validation
-* Added frontend filtering logic and UI controls
-* Integrated extension-to-backend communication
-* Expanded unit and integration testing
+### Unit Tests
+All unit tests are located in `backend/tests/` mirroring the `src/` structure:
+
+```bash
+cd backend
+npm test
+```
+
+**Test Coverage:**
+* Authentication service (8 tests)
+* User service (6 tests)
+* Recipe service (6 tests)
+* Meal plans service (10 tests)
+* Inventory utilities (6 tests)
+* Metro integration (5 tests)
+
+**Total: 41 unit tests** ✅
+
+
+### CI/CD
+All tests run automatically on GitHub Actions for every push and pull request.
+
 
 ---
 
-## 👥 Team — Hungry Hackers
+## 📄 License
 
-| Name    | Role                          |
-| ------- | ----------------------------- |
-| Taras   | Backend & Chrome Extension    |
-| Ishika  | Frontend (Search & Filtering) |
-| Nigel   | Backend (Recipe API)          |
-| Dylan   | Frontend (Recipe UI & Pages)  |
-| Mouawad | Documentation & Testing       |
+This project was developed as part of SOEN 341 - Software Process at Concordia University.
 
+---

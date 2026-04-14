@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Edit2, Trash2, Clock, Users, ChefHat, DollarSign, ArrowLeft, ListOrdered } from 'lucide-react'
-import { useAuth } from '../AuthContext'
+import { useAuth } from '../contexts/AuthContext'
 
 // This page displays the full details of a single recipe
 // The recipe ID comes from the URL (e.g. /recipes/aRecipeId)

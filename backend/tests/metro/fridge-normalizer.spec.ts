@@ -2,7 +2,7 @@ import {
   extractSizeLabel,
   normalizeMetroItem,
   simplifyProductName,
-} from './fridge-normalizer';
+} from '../../src/metro/fridge-normalizer';
 
 describe('fridge-normalizer', () => {
   it('reduces branded grocery titles to a readable fridge name', () => {

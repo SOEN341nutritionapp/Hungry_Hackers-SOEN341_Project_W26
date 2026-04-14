@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useAuth } from '../AuthContext'
+import { useAuth } from '../contexts/AuthContext'
 
 export default function ExtensionTokenBridge() {
   const { accessToken } = useAuth()

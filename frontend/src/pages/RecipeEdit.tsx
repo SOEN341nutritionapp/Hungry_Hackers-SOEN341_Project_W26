@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Plus, X, ArrowLeft, Save, Minus } from 'lucide-react'
-import { useAuth } from '../AuthContext'
+import { useAuth } from '../contexts/AuthContext'
 
 // Form to edit an existing recipe
 // Loads the existing recipe data and pre-fills all the fields
